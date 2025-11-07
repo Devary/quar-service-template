@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.sandbox";
+option java_outer_classname = "TestGrpcProto";
+
+package test;
+
+service TestGrpc {
+    rpc Test (TestRequest) returns (TestReply) {}
+}
+
+message TestRequest {
+    string name = 1;
+}
+
+message TestReply {
+    string message = 1;
+}
