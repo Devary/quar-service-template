@@ -13,6 +13,20 @@
         <relativePath/>
     </parent>
 
+    <repositories>
+        <repository>
+            <id>jfrog-releases</id>
+            <name>JFrog Releases</name>
+            <url>${jfrog.base.url}/dev-mvn-repo</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <properties>
         <jfrog.base.url>http://192.168.178.41:30990/artifactory</jfrog.base.url>
     </properties>
