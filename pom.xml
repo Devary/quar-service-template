@@ -17,34 +17,6 @@
         <jfrog.base.url>http://192.168.178.41:30990/artifactory</jfrog.base.url>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>jfrog-releases</id>
-            <name>JFrog Releases</name>
-            <url>${jfrog.base.url}/dev-mvn-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>jfrog-plugins</id>
-            <name>JFrog Plugins</name>
-            <url>${jfrog.base.url}/dev-mvn-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-
     <profiles>
         <profile>
             <id>local</id>
@@ -54,18 +26,6 @@
         </profile>
         <profile>
             <id>use-jfrog</id>
-            <distributionManagement>
-                <repository>
-                    <id>jfrog-releases</id>
-                    <name>JFrog Releases</name>
-                    <url>${jfrog.base.url}/dev-mvn-repo</url>
-                </repository>
-                <snapshotRepository>
-                    <id>jfrog-snapshots</id>
-                    <name>JFrog Snapshots</name>
-                    <url>${jfrog.base.url}/dev-mvn-repo</url>
-                </snapshotRepository>
-            </distributionManagement>
         </profile>
     </profiles>
 </project>
