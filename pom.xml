@@ -8,7 +8,6 @@
         <groupId>com.devary</groupId>
         <artifactId>parent</artifactId>
         <version>1.0.0</version>
-        <relativePath/>
     </parent>
 
     <properties>
@@ -20,6 +19,9 @@
         </profile>
         <profile>
             <id>native</id>
+        </profile>
+        <profile>
+            <id>use-jfrog</id>
         </profile>
     </profiles>
 </project>
