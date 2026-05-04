@@ -47,6 +47,7 @@ pipeline {
         booleanParam(name: 'GENERATE_NATIVE_IMAGE', defaultValue: false, description: 'Build the Quarkus native image for this run')
         booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Package/publish to Maven only and skip image build + deployment flow')
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip Maven test execution in build and test stages')
+        booleanParam(name: 'ENABLE_RESOLVE_VERSION_STAGE', defaultValue: false, description: 'Enable Maven version resolution/mutation stage')
         booleanParam(name: 'ENABLE_PROJECT_TYPE_STAGE', defaultValue: true, description: 'Enable project type detection stage')
         booleanParam(name: 'ENABLE_SONAR_STAGE', defaultValue: true, description: 'Enable SonarQube analysis stage')
         booleanParam(name: 'ENABLE_LOGGING', defaultValue: true, description: 'Enable verbose logging/debug steps')
@@ -92,6 +93,9 @@ pipeline {
         }
 
         stage('Resolve Version') {
+            when {
+                expression { return params.ENABLE_RESOLVE_VERSION_STAGE }
+            }
             steps {
                 script {
                     def manualVersion = params.MANUAL_VERSION?.trim()
@@ -123,6 +127,7 @@ pipeline {
 
                     env.APP_VERSION = targetVersion
                     env.IMAGE_TAG = targetVersion
+                    sh 'mkdir -p target'
                     writeFile file: 'target/.resolved-version', text: "${targetVersion}\n"
                     echo "Resolved Maven version: ${targetVersion}"
                 }
@@ -209,7 +214,12 @@ pipeline {
             steps {
                 script {
                     def projectType = fileExists('target/.project-type') ? readFile('target/.project-type').trim() : (env.PROJECT_TYPE ?: 'java')
-                    def resolvedVersion = readFile('target/.resolved-version').trim()
+                    def resolvedVersion = fileExists('target/.resolved-version')
+                        ? readFile('target/.resolved-version').trim()
+                        : sh(
+                            script: "mvn -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout",
+                            returnStdout: true
+                        ).trim()
                     def packagingType = sh(
                         script: "mvn -B -ntp -q help:evaluate -Dexpression=project.packaging -DforceStdout",
                         returnStdout: true
@@ -496,7 +506,11 @@ IMAGE_PATH=${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.IMAGE_NAME}
                     sshagent(credentials: ['github-ssh']) {
                         sh '''
                           set -euxo pipefail
-                          RESOLVED_VERSION=$(cat target/.resolved-version)
+                          if [ -f target/.resolved-version ]; then
+                            RESOLVED_VERSION=$(cat target/.resolved-version)
+                          else
+                            RESOLVED_VERSION=$(mvn -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout)
+                          fi
                           git config user.name "jenkins"
                           git config user.email "jenkins@local"
                           git add pom.xml service-template/pom.xml quarkus-service-template/pom.xml chassis/pom.xml 2>/dev/null || true
