@@ -11,6 +11,9 @@ pipeline {
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
+        string(name: 'JOB_SCRIPT_REPO_URL', defaultValue: 'git@github.com:Devary/infra.git', description: 'Private git repository URL containing the Rundeck job script')
+        string(name: 'JOB_SCRIPT_REF', defaultValue: 'main', description: 'Git branch/tag/commit for the Rundeck job script repo')
+        string(name: 'JOB_SCRIPT_PATH', defaultValue: 'rundeck/job-script.sh', description: 'Path to the script inside the git repository')
     }
 
     options {
@@ -119,6 +122,12 @@ DOCKERFILE=${dockerfile}
 
         stage('Rundeck Job') {
             steps {
+                script {
+                    if (!params.JOB_SCRIPT_REPO_URL?.trim()) {
+                        error('JOB_SCRIPT_REPO_URL is required for the Rundeck stage')
+                    }
+                }
+
                 withCredentials([string(credentialsId: 'rundeck-api-token', variable: 'RUNDECK_TOKEN')]) {
                     sh '''
                         set -euo pipefail
@@ -126,7 +135,9 @@ DOCKERFILE=${dockerfile}
                         cat > target/rundeck-payload.json <<EOF
 {
   "options": {
-    "workspace": "${WORKSPACE}",
+    "job_script_repo_url": "${JOB_SCRIPT_REPO_URL}",
+    "job_script_ref": "${JOB_SCRIPT_REF}",
+    "job_script_path": "${JOB_SCRIPT_PATH}",
     "image": "${IMAGE_NAME}",
     "tag": "${IMAGE_TAG}",
     "namespace": "${NAMESPACE}",
