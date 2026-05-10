@@ -123,19 +123,23 @@ DOCKERFILE=${dockerfile}
                     sh '''
                         set -euo pipefail
                         . target/.image-vars
+                        cat > target/rundeck-payload.json <<EOF
+{
+  "options": {
+    "workspace": "${WORKSPACE}",
+    "image": "${IMAGE_NAME}",
+    "tag": "${IMAGE_TAG}",
+    "namespace": "${NAMESPACE}",
+    "deployment": "${APP_NAME}",
+    "container": "${APP_NAME}"
+  }
+}
+EOF
+                        cat target/rundeck-payload.json
                         curl -sS -X POST "http://$RUNDECK_HOST:$RUNDECK_PORT/api/46/job/$RUNDECK_JOB_ID/run" \
                           -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
                           -H "Content-Type: application/json" \
-                          -d "{
-                            \"options\": {
-                              \"workspace\": \"${WORKSPACE}\",
-                              \"image\": \"${IMAGE_NAME}\",
-                              \"tag\": \"${IMAGE_TAG}\",
-                              \"namespace\": \"${NAMESPACE}\",
-                              \"deployment\": \"${APP_NAME}\",
-                              \"container\": \"${APP_NAME}\"
-                            }
-                          }"
+                          --data @target/rundeck-payload.json
                     '''
                 }
             }
