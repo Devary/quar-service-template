@@ -126,27 +126,32 @@ DOCKERFILE=${dockerfile}
                     if (!params.JOB_SCRIPT_REPO_URL?.trim()) {
                         error('JOB_SCRIPT_REPO_URL is required for the Rundeck stage')
                     }
+
+                    def imageVars = readProperties file: 'target/.image-vars'
+                    def payload = [
+                        options: [
+                            job_script_repo_url: params.JOB_SCRIPT_REPO_URL,
+                            job_script_ref     : params.JOB_SCRIPT_REF,
+                            job_script_path    : params.JOB_SCRIPT_PATH,
+                            image              : imageVars.IMAGE_NAME,
+                            tag                : imageVars.IMAGE_TAG,
+                            namespace          : env.NAMESPACE,
+                            deployment         : env.APP_NAME,
+                            container          : env.APP_NAME
+                        ]
+                    ]
+
+                    writeFile(
+                        file: 'target/rundeck-payload.json',
+                        text: groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(payload))
+                    )
+
+                    sh 'cat target/rundeck-payload.json'
                 }
 
                 withCredentials([string(credentialsId: 'rundeck-api-token', variable: 'RUNDECK_TOKEN')]) {
                     sh '''
                         set -euo pipefail
-                        . target/.image-vars
-                        cat > target/rundeck-payload.json <<EOF
-{
-  "options": {
-    "job_script_repo_url": "${JOB_SCRIPT_REPO_URL}",
-    "job_script_ref": "${JOB_SCRIPT_REF}",
-    "job_script_path": "${JOB_SCRIPT_PATH}",
-    "image": "${IMAGE_NAME}",
-    "tag": "${IMAGE_TAG}",
-    "namespace": "${NAMESPACE}",
-    "deployment": "${APP_NAME}",
-    "container": "${APP_NAME}"
-  }
-}
-EOF
-                        cat target/rundeck-payload.json
                         curl -sS -X POST "http://$RUNDECK_HOST:$RUNDECK_PORT/api/46/job/$RUNDECK_JOB_ID/run" \
                           -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
                           -H "Content-Type: application/json" \
