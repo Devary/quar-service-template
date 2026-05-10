@@ -127,14 +127,21 @@ DOCKERFILE=${dockerfile}
                         error('JOB_SCRIPT_REPO_URL is required for the Rundeck stage')
                     }
 
-                    def imageVars = readProperties file: 'target/.image-vars'
+                    def imageVars = [:]
+                    readFile('target/.image-vars').split('\n').each { line ->
+                        if (line?.trim() && line.contains('=')) {
+                            def (key, value) = line.split('=', 2)
+                            imageVars[key.trim()] = value.trim()
+                        }
+                    }
+
                     def payload = [
                         options: [
                             job_script_repo_url: params.JOB_SCRIPT_REPO_URL,
                             job_script_ref     : params.JOB_SCRIPT_REF,
                             job_script_path    : params.JOB_SCRIPT_PATH,
-                            image              : imageVars.IMAGE_NAME,
-                            tag                : imageVars.IMAGE_TAG,
+                            image              : imageVars['IMAGE_NAME'],
+                            tag                : imageVars['IMAGE_TAG'],
                             namespace          : env.NAMESPACE,
                             deployment         : env.APP_NAME,
                             container          : env.APP_NAME
