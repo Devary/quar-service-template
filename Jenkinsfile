@@ -9,6 +9,8 @@ pipeline {
     parameters {
         booleanParam(name: 'NATIVE_BUILD', defaultValue: false, description: 'If checked, run native package/image instead of classic JVM package/image')
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
+        string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
+        string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
     }
 
     options {
@@ -23,7 +25,6 @@ pipeline {
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
-        HARBOR_PROJECT = 'library'
         IMAGE_TAG = ''
         IMAGE_NAME = ''
     }
@@ -76,26 +77,27 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    env.IMAGE_NAME = params.NATIVE_BUILD
-                        ? "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.APP_NAME}-native"
-                        : "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.APP_NAME}"
+                    def repoName = params.NATIVE_BUILD
+                        ? "${params.IMAGE_REPOSITORY}-native"
+                        : params.IMAGE_REPOSITORY
 
-                    def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
-                    def imageName = env.IMAGE_NAME
-                    def imageTag = env.IMAGE_TAG
-                    def registry = env.HARBOR_REGISTRY
+                    env.IMAGE_NAME = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
 
                     withCredentials([usernamePassword(
                         credentialsId: 'harbor-creds',
                         usernameVariable: 'HARBOR_USER',
                         passwordVariable: 'HARBOR_PASS'
                     )]) {
+                        def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
                         sh """
                             set -euo pipefail
-                            echo \"\$HARBOR_PASS\" | docker login \"${registry}\" -u \"\$HARBOR_USER\" --password-stdin
-                            docker build -f ${dockerfile} -t ${imageName}:${imageTag} -t ${imageName}:latest .
-                            docker push ${imageName}:${imageTag}
-                            docker push ${imageName}:latest
+                            echo \"Pushing image to: ${env.IMAGE_NAME}\"
+                            echo \"Project: ${params.HARBOR_PROJECT}\"
+                            echo \"Repository: ${repoName}\"
+                            echo \"\$HARBOR_PASS\" | docker login \"${env.HARBOR_REGISTRY}\" -u \"\$HARBOR_USER\" --password-stdin
+                            docker build -f ${dockerfile} -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} -t ${env.IMAGE_NAME}:latest .
+                            docker push ${env.IMAGE_NAME}:${env.IMAGE_TAG}
+                            docker push ${env.IMAGE_NAME}:latest
                         """
                     }
                 }
