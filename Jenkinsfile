@@ -6,6 +6,11 @@ pipeline {
         maven 'Maven'
     }
 
+    parameters {
+        booleanParam(name: 'NATIVE_BUILD', defaultValue: false, description: 'If checked, run native package/image instead of classic JVM package/image')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
+    }
+
     options {
         timestamps()
         disableConcurrentBuilds()
@@ -20,8 +25,7 @@ pipeline {
         HARBOR_REGISTRY = '192.168.178.41:30002'
         HARBOR_PROJECT = 'library'
         IMAGE_TAG = ''
-        JVM_IMAGE = ''
-        NATIVE_IMAGE = ''
+        IMAGE_NAME = ''
     }
 
     stages {
@@ -32,20 +36,35 @@ pipeline {
         }
 
         stage('Test') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
             steps {
                 sh './mvnw -B -ntp test'
             }
         }
 
         stage('Classic Package') {
+            when {
+                expression { !params.NATIVE_BUILD }
+            }
             steps {
-                sh './mvnw -B -ntp clean package -DskipTests'
+                script {
+                    def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
+                    sh "./mvnw -B -ntp clean package${skipFlag}"
+                }
             }
         }
 
         stage('Native Package') {
+            when {
+                expression { params.NATIVE_BUILD }
+            }
             steps {
-                sh './mvnw -B -ntp package -Pnative -DskipTests -Dquarkus.native.container-build=true'
+                script {
+                    def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
+                    sh "./mvnw -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
+                }
             }
         }
 
@@ -53,58 +72,63 @@ pipeline {
             steps {
                 script {
                     env.IMAGE_TAG = sh(
-                        script: "./mvnw -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout",
+                        script: './mvnw -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
                         returnStdout: true
                     ).trim()
-                    env.JVM_IMAGE = "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.APP_NAME}:${env.IMAGE_TAG}"
-                    env.NATIVE_IMAGE = "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.APP_NAME}-native:${env.IMAGE_TAG}"
-                }
 
-                withCredentials([usernamePassword(
-                    credentialsId: 'harbor-creds',
-                    usernameVariable: 'HARBOR_USER',
-                    passwordVariable: 'HARBOR_PASS'
-                )]) {
-                    sh '''
-                        set -euo pipefail
-                        echo "$HARBOR_PASS" | docker login "$HARBOR_REGISTRY" -u "$HARBOR_USER" --password-stdin
+                    env.IMAGE_NAME = params.NATIVE_BUILD
+                        ? "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.APP_NAME}-native"
+                        : "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${env.APP_NAME}"
 
-                        docker build -f src/main/docker/Dockerfile.jvm \
-                          -t "$JVM_IMAGE" \
-                          -t "$HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_NAME:latest" .
+                    def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
+                    def imageName = env.IMAGE_NAME
+                    def imageTag = env.IMAGE_TAG
+                    def registry = env.HARBOR_REGISTRY
 
-                        docker build -f src/main/docker/Dockerfile.native \
-                          -t "$NATIVE_IMAGE" \
-                          -t "$HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_NAME-native:latest" .
-
-                        docker push "$JVM_IMAGE"
-                        docker push "$HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_NAME:latest"
-                        docker push "$NATIVE_IMAGE"
-                        docker push "$HARBOR_REGISTRY/$HARBOR_PROJECT/$APP_NAME-native:latest"
-                    '''
+                    withCredentials([usernamePassword(
+                        credentialsId: 'harbor-creds',
+                        usernameVariable: 'HARBOR_USER',
+                        passwordVariable: 'HARBOR_PASS'
+                    )]) {
+                        sh """
+                            set -euo pipefail
+                            echo \"\$HARBOR_PASS\" | docker login \"${registry}\" -u \"\$HARBOR_USER\" --password-stdin
+                            docker build -f ${dockerfile} -t ${imageName}:${imageTag} -t ${imageName}:latest .
+                            docker push ${imageName}:${imageTag}
+                            docker push ${imageName}:latest
+                        """
+                    }
                 }
             }
         }
 
         stage('Rundeck Job') {
             steps {
-                withCredentials([string(credentialsId: 'rundeck-api-token', variable: 'RUNDECK_TOKEN')]) {
-                    sh '''
-                        set -euo pipefail
-                        curl -sS -X POST "http://$RUNDECK_HOST:$RUNDECK_PORT/api/46/job/$RUNDECK_JOB_ID/run" \
-                          -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
-                          -H "Content-Type: application/json" \
-                          -d "{
-                            \"options\": {
-                              \"workspace\": \"${WORKSPACE}\",
-                              \"image\": \"${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${APP_NAME}\",
-                              \"tag\": \"${IMAGE_TAG}\",
-                              \"namespace\": \"${NAMESPACE}\",
-                              \"deployment\": \"${APP_NAME}\",
-                              \"container\": \"${APP_NAME}\"
-                            }
-                          }"
-                    '''
+                script {
+                    def imageName = env.IMAGE_NAME
+                    def imageTag = env.IMAGE_TAG
+                    def namespace = env.NAMESPACE
+                    def appName = env.APP_NAME
+                    def rundeckUrl = "http://${env.RUNDECK_HOST}:${env.RUNDECK_PORT}/api/46/job/${env.RUNDECK_JOB_ID}/run"
+
+                    withCredentials([string(credentialsId: 'rundeck-api-token', variable: 'RUNDECK_TOKEN')]) {
+                        sh """
+                            set -euo pipefail
+                            curl -sS -X POST \"${rundeckUrl}\" \
+                              -H \"X-Rundeck-Auth-Token: \$RUNDECK_TOKEN\" \
+                              -H \"Content-Type: application/json\" \
+                              -d '{
+                                "options": {
+                                  "workspace": "${WORKSPACE}",
+                                  "image": "${imageName}",
+                                  "tag": "${imageTag}",
+                                  "namespace": "${namespace}",
+                                  "deployment": "${appName}",
+                                  "container": "${appName}"
+                                }
+                              }'
+                        """
+                    }
                 }
             }
         }
