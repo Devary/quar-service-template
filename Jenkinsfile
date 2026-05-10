@@ -21,7 +21,7 @@ pipeline {
     environment {
         APP_NAME = 'service-template'
         RUNDECK_HOST = '192.168.178.41'
-        RUNDECK_PORT = '4440'
+        RUNDECK_PORT = '31977'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
