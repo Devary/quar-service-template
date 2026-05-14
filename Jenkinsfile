@@ -11,9 +11,6 @@ pipeline {
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
-        string(name: 'JOB_SCRIPT_REPO_URL', defaultValue: 'git@github.com:Devary/infra.git', description: 'Private git repository URL containing the Rundeck job script')
-        string(name: 'JOB_SCRIPT_REF', defaultValue: 'main', description: 'Git branch/tag/commit for the Rundeck job script repo')
-        string(name: 'JOB_SCRIPT_PATH', defaultValue: 'rundeck/job-script.sh', description: 'Path to the script inside the git repository')
     }
 
     options {
@@ -123,10 +120,6 @@ DOCKERFILE=${dockerfile}
         stage('Rundeck Job') {
             steps {
                 script {
-                    if (!params.JOB_SCRIPT_REPO_URL?.trim()) {
-                        error('JOB_SCRIPT_REPO_URL is required for the Rundeck stage')
-                    }
-
                     def imageVars = [:]
                     readFile('target/.image-vars').split('\n').each { line ->
                         if (line?.trim() && line.contains('=')) {
@@ -137,14 +130,11 @@ DOCKERFILE=${dockerfile}
 
                     def payload = [
                         options: [
-                            job_script_repo_url: params.JOB_SCRIPT_REPO_URL,
-                            job_script_ref     : params.JOB_SCRIPT_REF,
-                            job_script_path    : params.JOB_SCRIPT_PATH,
-                            image              : imageVars['IMAGE_NAME'],
-                            tag                : imageVars['IMAGE_TAG'],
-                            namespace          : env.NAMESPACE,
-                            deployment         : env.APP_NAME,
-                            container          : env.APP_NAME
+                            image      : imageVars['IMAGE_NAME'],
+                            tag        : imageVars['IMAGE_TAG'],
+                            namespace  : env.NAMESPACE,
+                            deployment : env.APP_NAME,
+                            container  : env.APP_NAME
                         ]
                     ]
 
