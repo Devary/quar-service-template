@@ -138,16 +138,20 @@ DOCKERFILE=${dockerfile}
                         }
                     }
 
+                    def infraWorkspace = "${env.WORKSPACE}/infra"
+
                     def rundeckOptions = """image=${imageVars['IMAGE_NAME']}
 tag=${imageVars['IMAGE_TAG']}
 namespace=${env.NAMESPACE}
 deployment=${env.APP_NAME}
 container=${env.APP_NAME}
 port=${env.APP_PORT}
+workspace=${infraWorkspace}
 """.stripIndent().trim()
 
                     echo "Rundeck instance: ${env.RUNDECK_INSTANCE}"
                     echo "Rundeck job id: ${env.RUNDECK_JOB_ID}"
+                    echo "Infra workspace: ${infraWorkspace}"
                     echo "Rundeck options:\n${rundeckOptions}"
 
                     step([$class: 'RundeckNotifier',
