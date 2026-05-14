@@ -11,6 +11,7 @@ pipeline {
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
+        string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
     }
 
     options {
@@ -146,6 +147,7 @@ namespace=${env.NAMESPACE}
 deployment=${env.APP_NAME}
 container=${env.APP_NAME}
 port=${env.APP_PORT}
+replicas=${params.REPLICAS}
 workspace=${infraWorkspace}
 """.stripIndent().trim()
 
