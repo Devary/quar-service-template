@@ -21,8 +21,7 @@ pipeline {
     environment {
         APP_NAME = 'service-template'
         APP_PORT = '8080'
-        RUNDECK_HOST = '192.168.178.41'
-        RUNDECK_PORT = '31977'
+        RUNDECK_INSTANCE = 'local-rundeck'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
@@ -139,33 +138,27 @@ DOCKERFILE=${dockerfile}
                         }
                     }
 
-                    def payload = [
-                        options: [
-                            image      : imageVars['IMAGE_NAME'],
-                            tag        : imageVars['IMAGE_TAG'],
-                            namespace  : env.NAMESPACE,
-                            deployment : env.APP_NAME,
-                            container  : env.APP_NAME,
-                            port       : env.APP_PORT
-                        ]
-                    ]
+                    def rundeckOptions = """image=${imageVars['IMAGE_NAME']}
+tag=${imageVars['IMAGE_TAG']}
+namespace=${env.NAMESPACE}
+deployment=${env.APP_NAME}
+container=${env.APP_NAME}
+port=${env.APP_PORT}
+""".stripIndent().trim()
 
-                    writeFile(
-                        file: 'target/rundeck-payload.json',
-                        text: groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(payload))
-                    )
+                    echo "Rundeck instance: ${env.RUNDECK_INSTANCE}"
+                    echo "Rundeck job id: ${env.RUNDECK_JOB_ID}"
+                    echo "Rundeck options:\n${rundeckOptions}"
 
-                    sh 'cat target/rundeck-payload.json'
-                }
-
-                withCredentials([string(credentialsId: 'rundeck-api-token', variable: 'RUNDECK_TOKEN')]) {
-                    sh '''
-                        set -euo pipefail
-                        curl -sS -X POST "http://$RUNDECK_HOST:$RUNDECK_PORT/api/46/job/$RUNDECK_JOB_ID/run" \
-                          -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
-                          -H "Content-Type: application/json" \
-                          --data @target/rundeck-payload.json
-                    '''
+                    step([$class: 'RundeckNotifier',
+                        rundeckInstance: env.RUNDECK_INSTANCE,
+                        jobId: env.RUNDECK_JOB_ID,
+                        options: rundeckOptions,
+                        shouldWaitForRundeckJob: true,
+                        shouldFailTheBuild: true,
+                        includeRundeckLogs: true,
+                        tailLog: true
+                    ])
                 }
             }
         }
