@@ -20,17 +20,28 @@ pipeline {
 
     environment {
         APP_NAME = 'service-template'
+        APP_PORT = '8080'
         RUNDECK_HOST = '192.168.178.41'
         RUNDECK_PORT = '31977'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
+        INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
+        INFRA_REPO_BRANCH = 'main'
     }
 
     stages {
         stage('Checkout SCM') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Checkout Infra') {
+            steps {
+                dir('infra') {
+                    git branch: env.INFRA_REPO_BRANCH, url: env.INFRA_REPO_URL
+                }
             }
         }
 
@@ -134,7 +145,8 @@ DOCKERFILE=${dockerfile}
                             tag        : imageVars['IMAGE_TAG'],
                             namespace  : env.NAMESPACE,
                             deployment : env.APP_NAME,
-                            container  : env.APP_NAME
+                            container  : env.APP_NAME,
+                            port       : env.APP_PORT
                         ]
                     ]
 
