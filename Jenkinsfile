@@ -9,6 +9,7 @@ pipeline {
     parameters {
         booleanParam(name: 'NATIVE_BUILD', defaultValue: false, description: 'If checked, run native package/image instead of classic JVM package/image')
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
+        booleanParam(name: 'ENABLE_SONAR_STAGE', defaultValue: true, description: 'Enable SonarQube analysis stage')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
@@ -24,6 +25,7 @@ pipeline {
         APP_PORT = '8080'
         RUNDECK_INSTANCE = 'local-rundeck'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
+        SONARQUBE_ENV = 'SonarQube'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
@@ -51,6 +53,23 @@ pipeline {
             }
             steps {
                 sh './mvnw -B -ntp test'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            when {
+                expression { params.ENABLE_SONAR_STAGE }
+            }
+            steps {
+                withSonarQubeEnv(env.SONARQUBE_ENV) {
+                    sh """
+                        set -euo pipefail
+                        ./mvnw -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                          -DskipTests \
+                          -Dsonar.projectKey=${env.APP_NAME} \
+                          -Dsonar.projectName=${env.APP_NAME}
+                    """
+                }
             }
         }
 
