@@ -10,6 +10,7 @@ pipeline {
         booleanParam(name: 'NATIVE_BUILD', defaultValue: false, description: 'If checked, run native package/image instead of classic JVM package/image')
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
         booleanParam(name: 'ENABLE_SONAR_STAGE', defaultValue: true, description: 'Enable SonarQube analysis stage')
+        booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
@@ -79,8 +80,7 @@ pipeline {
             }
             steps {
                 script {
-                    def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    sh "./mvnw -B -ntp clean package${skipFlag}"
+                    sh "./mvnw -B -ntp clean package -DskipTests"
                 }
             }
         }
@@ -93,6 +93,18 @@ pipeline {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
                     sh "./mvnw -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
+                }
+            }
+        }
+
+        stage('Deploy to JFrog') {
+            when {
+                expression { params.ENABLE_JFROG_DEPLOY }
+            }
+            steps {
+                script {
+                    def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
+                    sh "./mvnw -B -ntp -Puse-jfrog deploy${skipFlag}"
                 }
             }
         }
