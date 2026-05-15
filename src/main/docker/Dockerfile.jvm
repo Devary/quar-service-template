@@ -88,6 +88,7 @@ COPY --chown=185 target/quarkus-app/lib/ /deployments/lib/
 COPY --chown=185 target/quarkus-app/*.jar /deployments/
 COPY --chown=185 target/quarkus-app/app/ /deployments/app/
 COPY --chown=185 target/quarkus-app/quarkus/ /deployments/quarkus/
+COPY --chown=185 src/main/docker/entrypoint.sh /deployments/entrypoint.sh
 
 ##5005 is the debug port
 EXPOSE 5555 5005
@@ -99,5 +100,6 @@ ENV JAVA_DEBUG_PORT=0.0.0.0:5005
 ENV JAVA_DIAGNOSTICS=true
 # ENV JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 
-ENTRYPOINT [ "/opt/jboss/container/java/run/run-java.sh" ]
+RUN chmod +x /deployments/entrypoint.sh
+ENTRYPOINT [ "/deployments/entrypoint.sh" ]
 
