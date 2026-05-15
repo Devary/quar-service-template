@@ -5,9 +5,5 @@ services:
       dockerfile: src/main/docker/Dockerfile.jvm
     ports:
       - "5555:5555"
-      - "5005:5005"
-    environment:
-      JAVA_DEBUG: "true"
-      JAVA_DEBUG_PORT: "0.0.0.0:5005"
 ##    security_opt:
 ##      - label:disable ## for native ==> needs investigation about security issues

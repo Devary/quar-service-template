@@ -1,0 +1,7 @@
+services:
+  service-template:
+    ports:
+      - "5005:5005"
+    environment:
+      JAVA_DEBUG: "true"
+      JAVA_DEBUG_PORT: "0.0.0.0:5005"
