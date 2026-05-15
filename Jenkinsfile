@@ -24,6 +24,7 @@ pipeline {
     environment {
         APP_NAME = 'service-template'
         APP_PORT = '8080'
+        MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
         SONARQUBE_ENV = 'SonarQube'
@@ -54,6 +55,10 @@ pipeline {
 
         stage('Prepare Maven Settings') {
             steps {
+                script {
+                    env.MAVEN_CMD = fileExists('mvnw') ? './mvnw' : 'mvn'
+                    echo "Using Maven command: ${env.MAVEN_CMD}"
+                }
                 configFileProvider([
                     configFile(fileId: env.MAVEN_SETTINGS_CONFIG, variable: 'MAVEN_USER_SETTINGS_SRC'),
                     configFile(fileId: env.MAVEN_GLOBAL_SETTINGS_CONFIG, variable: 'MAVEN_GLOBAL_SETTINGS_SRC')
@@ -72,7 +77,7 @@ pipeline {
                 expression { !params.SKIP_TESTS }
             }
             steps {
-                sh './mvnw -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
+                sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
             }
         }
 
@@ -84,7 +89,7 @@ pipeline {
                 withSonarQubeEnv(env.SONARQUBE_ENV) {
                     sh """
                         set -euo pipefail
-                        ./mvnw -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                        $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
                           -DskipTests \
                           -Dsonar.projectKey=${env.APP_NAME} \
                           -Dsonar.projectName=${env.APP_NAME}
@@ -99,7 +104,7 @@ pipeline {
             }
             steps {
                 script {
-                    sh "./mvnw -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
+                    sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
                 }
             }
         }
@@ -111,7 +116,7 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    sh "./mvnw -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
+                    sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
                 }
             }
         }
@@ -123,7 +128,7 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    sh "./mvnw -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
+                    sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
                 }
             }
         }
@@ -132,7 +137,7 @@ pipeline {
             steps {
                 script {
                     def imageTag = sh(
-                        script: './mvnw -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
+                        script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
                         returnStdout: true
                     ).trim()
 
