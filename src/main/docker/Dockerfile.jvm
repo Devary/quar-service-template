@@ -94,7 +94,7 @@ EXPOSE 5555 5005
 USER 185
 ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
-ENV JAVA_DEBUG=false
+ENV JAVA_DEBUG=true
 ENV JAVA_DEBUG_PORT=0.0.0.0:5005
 ENV JAVA_DIAGNOSTICS=true
 # ENV JAVA_TOOL_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
