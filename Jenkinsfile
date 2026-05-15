@@ -29,8 +29,8 @@ pipeline {
         SONARQUBE_ENV = 'SonarQube'
         MAVEN_SETTINGS_CONFIG = 'cfa67020-8596-45d0-ad38-7b964f2e6e2a'
         MAVEN_GLOBAL_SETTINGS_CONFIG = 'd57cbd3d-1d5a-482e-8da4-abec2af79050'
-        MAVEN_USER_SETTINGS_FILE = 'target/jenkins-settings.xml'
-        MAVEN_GLOBAL_SETTINGS_FILE = 'target/jenkins-global-settings.xml'
+        MAVEN_USER_SETTINGS_FILE = '.jenkins-settings.xml'
+        MAVEN_GLOBAL_SETTINGS_FILE = '.jenkins-global-settings.xml'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
@@ -60,7 +60,6 @@ pipeline {
                 ]) {
                     sh '''
                         set -euo pipefail
-                        mkdir -p target
                         cp "$MAVEN_USER_SETTINGS_SRC" "$MAVEN_USER_SETTINGS_FILE"
                         cp "$MAVEN_GLOBAL_SETTINGS_SRC" "$MAVEN_GLOBAL_SETTINGS_FILE"
                     '''
