@@ -11,6 +11,7 @@ pipeline {
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
         booleanParam(name: 'ENABLE_SONAR_STAGE', defaultValue: true, description: 'Enable SonarQube analysis stage')
         booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
+        booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog; skip Docker and Rundeck deployment')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
@@ -46,10 +47,22 @@ pipeline {
         }
 
         stage('Checkout Infra') {
+            when {
+                expression { !params.PACKAGE_ONLY }
+            }
             steps {
                 dir('infra') {
                     git branch: env.INFRA_REPO_BRANCH, url: env.INFRA_REPO_URL
                 }
+            }
+        }
+
+        stage('Package-only Mode') {
+            when {
+                expression { params.PACKAGE_ONLY }
+            }
+            steps {
+                echo 'PACKAGE_ONLY=true -> this job will package and deploy to JFrog only. Docker/Rundeck stages are skipped.'
             }
         }
 
@@ -134,6 +147,9 @@ pipeline {
         }
 
         stage('Prepare Image Vars') {
+            when {
+                expression { !params.PACKAGE_ONLY }
+            }
             steps {
                 script {
                     def imageTag = sh(
@@ -164,6 +180,9 @@ DOCKERFILE=${dockerfile}
         }
 
         stage('Docker Image Push') {
+            when {
+                expression { !params.PACKAGE_ONLY }
+            }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'harbor-creds',
@@ -184,6 +203,9 @@ DOCKERFILE=${dockerfile}
         }
 
         stage('Rundeck Job') {
+            when {
+                expression { !params.PACKAGE_ONLY }
+            }
             steps {
                 script {
                     def imageVars = [:]
