@@ -15,6 +15,8 @@ pipeline {
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
+        string(name: 'K8S_VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL injected into the Kubernetes deployment')
+        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: 'default', description: 'Kubernetes service account used by the pod for Vault Kubernetes auth')
     }
 
     options {
@@ -272,6 +274,8 @@ deployment=${env.APP_NAME}
 container=${env.APP_NAME}
 port=${env.APP_PORT}
 replicas=${params.REPLICAS}
+vaultUrl=${params.K8S_VAULT_URL}
+serviceAccount=${params.K8S_SERVICE_ACCOUNT}
 workspace=${infraWorkspace}
 """.stripIndent().trim()
 

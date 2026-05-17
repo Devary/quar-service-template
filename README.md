@@ -86,13 +86,17 @@ The pipeline now:
 - uses `APP_PORT=5555`
 - reads `fakher` from Vault through `withVault(...)`
 - injects `FAKHER` into Maven test/package/deploy stages
+- passes `K8S_VAULT_URL` to the Kubernetes deployment
+- passes `K8S_SERVICE_ACCOUNT` to the Kubernetes deployment
 
-#### Jenkins plugin prerequisites
+### Kubernetes runtime requirements
 
-In Jenkins, make sure the HashiCorp Vault plugin global configuration is already working with:
+The deployed pod must have:
 
-- Vault URL
-- Vault token / auth configuration
+- `VAULT_URL` environment variable
+- a service account allowed by the Vault Kubernetes auth role for `service-template`
+
+The infra deployment template now injects both.
 
 ### Notes
 
@@ -100,3 +104,4 @@ In Jenkins, make sure the HashiCorp Vault plugin global configuration is already
 - DevServices for Vault/Postgres are disabled in this project
 - Local development uses `VAULT_URL` and `VAULT_TOKEN`
 - Jenkins uses the Vault plugin injection during pipeline execution
+- Kubernetes runtime still depends on Vault Kubernetes auth being configured correctly on the Vault side
