@@ -5,9 +5,12 @@ services:
       dockerfile: src/main/docker/Dockerfile.jvm
     ports:
       - "5555:5555"
-      - "5005:5005"
+      # Single-instance debug only:
+      # - "5005:5005"
     environment:
+      SERVICE_SCALE: "${SERVICE_SCALE:-1}"
       JAVA_DEBUG: "true"
       JAVA_DEBUG_PORT: "0.0.0.0:5005"
+    # entrypoint.sh disables remote debug automatically when SERVICE_SCALE > 1.
 ##    security_opt:
 ##      - label:disable ## for native ==> needs investigation about security issues
