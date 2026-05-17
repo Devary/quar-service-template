@@ -15,7 +15,6 @@ pipeline {
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
-        string(name: 'VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL used by Quarkus during build/test/package')
     }
 
     options {
@@ -38,7 +37,7 @@ pipeline {
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_TOKEN_CREDENTIALS_ID = 'vault-token'
+        VAULT_SECRET_PATH = 'anipoll/service-template'
     }
 
     stages {
@@ -92,8 +91,13 @@ pipeline {
                 expression { !params.SKIP_TESTS }
             }
             steps {
-                withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
-                    withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                script {
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
                         sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
                     }
                 }
@@ -105,8 +109,13 @@ pipeline {
                 expression { params.ENABLE_SONAR_STAGE }
             }
             steps {
-                withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
-                    withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                script {
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
                         withSonarQubeEnv(env.SONARQUBE_ENV) {
                             sh """
                                 set -euo pipefail
@@ -126,8 +135,13 @@ pipeline {
                 expression { !params.NATIVE_BUILD }
             }
             steps {
-                withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
-                    withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                script {
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
                     }
                 }
@@ -141,10 +155,13 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
-                        withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
-                            sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
-                        }
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
                     }
                 }
             }
@@ -157,10 +174,13 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
-                        withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
-                            sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
-                        }
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
                     }
                 }
             }
@@ -172,32 +192,35 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
-                        withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
-                            def imageTag = sh(
-                                script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
-                                returnStdout: true
-                            ).trim()
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
+                        def imageTag = sh(
+                            script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
+                            returnStdout: true
+                        ).trim()
 
-                            if (!imageTag || imageTag == 'null') {
-                                error('Could not resolve project.version from pom.xml')
-                            }
+                        if (!imageTag || imageTag == 'null') {
+                            error('Could not resolve project.version from pom.xml')
+                        }
 
-                            def repoName = params.NATIVE_BUILD
-                                ? "${params.IMAGE_REPOSITORY}-native"
-                                : params.IMAGE_REPOSITORY
+                        def repoName = params.NATIVE_BUILD
+                            ? "${params.IMAGE_REPOSITORY}-native"
+                            : params.IMAGE_REPOSITORY
 
-                            def imageName = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
-                            def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
+                        def imageName = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
+                        def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
 
-                            sh 'mkdir -p target'
-                            writeFile file: 'target/.image-vars', text: """IMAGE_TAG=${imageTag}
+                        sh 'mkdir -p target'
+                        writeFile file: 'target/.image-vars', text: """IMAGE_TAG=${imageTag}
 IMAGE_NAME=${imageName}
 DOCKERFILE=${dockerfile}
 """
 
-                            sh 'cat target/.image-vars'
-                        }
+                        sh 'cat target/.image-vars'
                     }
                 }
             }

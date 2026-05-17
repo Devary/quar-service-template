@@ -67,33 +67,42 @@ If you set variables in another terminal, they will not appear in the current on
 
 ### Jenkins setup
 
-Jenkins should inject the same values as environment variables during the build.
+This project is now configured to use the **HashiCorp Vault Jenkins plugin**.
 
-#### Expected Jenkins inputs
+#### Expected Vault secret
 
-- Parameter: `VAULT_URL`
-- Secret text credential: `vault-token`
+Jenkins reads from:
+
+- path: `anipoll/service-template`
+- engine version: `2`
+- key: `test`
+
+The pipeline injects that Vault key as environment variable:
+
+- `TEST`
+
+This lets the build/test phases resolve the `test` config property.
 
 #### Jenkinsfile behavior
 
 The pipeline now:
 
 - uses `APP_PORT=5555`
-- passes `VAULT_URL` from a Jenkins parameter
-- reads `VAULT_TOKEN` from the Jenkins secret text credential `vault-token`
-- injects both into Maven test/package/deploy steps
+- reads `test` from Vault through `withVault(...)`
+- injects `TEST` into Maven test/package/deploy stages
 
-#### Jenkins credential to create
+#### Jenkins plugin prerequisites
 
-In Jenkins:
+In Jenkins, make sure the HashiCorp Vault plugin global configuration is already working with:
 
-- go to **Manage Jenkins** → **Credentials**
-- add a **Secret text** credential
-- id: `vault-token`
-- secret: your Vault token
+- Vault URL
+- Vault token / auth configuration
+
+No extra `vault-token` credential is needed in the project Jenkinsfile anymore.
 
 ### Notes
 
 - HTTP port is `5555`
 - DevServices for Vault/Postgres are disabled in this project
-- Avoid storing the Vault token permanently in your shell profile unless you really want that risk
+- Local development uses `VAULT_URL` and `VAULT_TOKEN`
+- Jenkins uses the Vault plugin injection during pipeline execution
