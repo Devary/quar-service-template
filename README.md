@@ -65,6 +65,33 @@ env | grep '^VAULT'
 
 If you set variables in another terminal, they will not appear in the current one.
 
+### Jenkins setup
+
+Jenkins should inject the same values as environment variables during the build.
+
+#### Expected Jenkins inputs
+
+- Parameter: `VAULT_URL`
+- Secret text credential: `vault-token`
+
+#### Jenkinsfile behavior
+
+The pipeline now:
+
+- uses `APP_PORT=5555`
+- passes `VAULT_URL` from a Jenkins parameter
+- reads `VAULT_TOKEN` from the Jenkins secret text credential `vault-token`
+- injects both into Maven test/package/deploy steps
+
+#### Jenkins credential to create
+
+In Jenkins:
+
+- go to **Manage Jenkins** → **Credentials**
+- add a **Secret text** credential
+- id: `vault-token`
+- secret: your Vault token
+
 ### Notes
 
 - HTTP port is `5555`

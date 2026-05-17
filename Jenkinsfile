@@ -15,6 +15,7 @@ pipeline {
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
         string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
+        string(name: 'VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL used by Quarkus during build/test/package')
     }
 
     options {
@@ -24,7 +25,7 @@ pipeline {
 
     environment {
         APP_NAME = 'service-template'
-        APP_PORT = '8080'
+        APP_PORT = '5555'
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
@@ -37,6 +38,7 @@ pipeline {
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
+        VAULT_TOKEN_CREDENTIALS_ID = 'vault-token'
     }
 
     stages {
@@ -90,7 +92,11 @@ pipeline {
                 expression { !params.SKIP_TESTS }
             }
             steps {
-                sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
+                withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
+                    withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
+                    }
+                }
             }
         }
 
@@ -99,14 +105,18 @@ pipeline {
                 expression { params.ENABLE_SONAR_STAGE }
             }
             steps {
-                withSonarQubeEnv(env.SONARQUBE_ENV) {
-                    sh """
-                        set -euo pipefail
-                        $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-                          -DskipTests \
-                          -Dsonar.projectKey=${env.APP_NAME} \
-                          -Dsonar.projectName=${env.APP_NAME}
-                    """
+                withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
+                    withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                        withSonarQubeEnv(env.SONARQUBE_ENV) {
+                            sh """
+                                set -euo pipefail
+                                $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                                  -DskipTests \
+                                  -Dsonar.projectKey=${env.APP_NAME} \
+                                  -Dsonar.projectName=${env.APP_NAME}
+                            """
+                        }
+                    }
                 }
             }
         }
@@ -116,8 +126,10 @@ pipeline {
                 expression { !params.NATIVE_BUILD }
             }
             steps {
-                script {
-                    sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
+                withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
+                    withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
+                    }
                 }
             }
         }
@@ -129,7 +141,11 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
+                    withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
+                        withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                            sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
+                        }
+                    }
                 }
             }
         }
@@ -141,7 +157,11 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
+                    withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
+                        withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                            sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
+                        }
+                    }
                 }
             }
         }
@@ -152,29 +172,33 @@ pipeline {
             }
             steps {
                 script {
-                    def imageTag = sh(
-                        script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
-                        returnStdout: true
-                    ).trim()
+                    withCredentials([string(credentialsId: env.VAULT_TOKEN_CREDENTIALS_ID, variable: 'VAULT_TOKEN')]) {
+                        withEnv(["VAULT_URL=${params.VAULT_URL}"]) {
+                            def imageTag = sh(
+                                script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
+                                returnStdout: true
+                            ).trim()
 
-                    if (!imageTag || imageTag == 'null') {
-                        error('Could not resolve project.version from pom.xml')
-                    }
+                            if (!imageTag || imageTag == 'null') {
+                                error('Could not resolve project.version from pom.xml')
+                            }
 
-                    def repoName = params.NATIVE_BUILD
-                        ? "${params.IMAGE_REPOSITORY}-native"
-                        : params.IMAGE_REPOSITORY
+                            def repoName = params.NATIVE_BUILD
+                                ? "${params.IMAGE_REPOSITORY}-native"
+                                : params.IMAGE_REPOSITORY
 
-                    def imageName = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
-                    def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
+                            def imageName = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
+                            def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
 
-                    sh 'mkdir -p target'
-                    writeFile file: 'target/.image-vars', text: """IMAGE_TAG=${imageTag}
+                            sh 'mkdir -p target'
+                            writeFile file: 'target/.image-vars', text: """IMAGE_TAG=${imageTag}
 IMAGE_NAME=${imageName}
 DOCKERFILE=${dockerfile}
 """
 
-                    sh 'cat target/.image-vars'
+                            sh 'cat target/.image-vars'
+                        }
+                    }
                 }
             }
         }
