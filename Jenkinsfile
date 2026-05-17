@@ -95,7 +95,7 @@ pipeline {
                     def vaultSecrets = [[
                         path: env.VAULT_SECRET_PATH,
                         engineVersion: 2,
-                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
@@ -113,7 +113,7 @@ pipeline {
                     def vaultSecrets = [[
                         path: env.VAULT_SECRET_PATH,
                         engineVersion: 2,
-                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         withSonarQubeEnv(env.SONARQUBE_ENV) {
@@ -139,7 +139,7 @@ pipeline {
                     def vaultSecrets = [[
                         path: env.VAULT_SECRET_PATH,
                         engineVersion: 2,
-                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
@@ -158,7 +158,7 @@ pipeline {
                     def vaultSecrets = [[
                         path: env.VAULT_SECRET_PATH,
                         engineVersion: 2,
-                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
@@ -177,7 +177,7 @@ pipeline {
                     def vaultSecrets = [[
                         path: env.VAULT_SECRET_PATH,
                         engineVersion: 2,
-                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
@@ -195,7 +195,7 @@ pipeline {
                     def vaultSecrets = [[
                         path: env.VAULT_SECRET_PATH,
                         engineVersion: 2,
-                        secretValues: [[vaultKey: 'test', envVar: 'TEST']]
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         def imageTag = sh(

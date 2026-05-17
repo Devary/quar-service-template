@@ -4,26 +4,22 @@ Service template.
 
 ## Vault
 
-This project can read config directly from Vault.
+This project reads config directly from Vault.
 
 ### Vault secret used
 
 - Vault UI path: `anipoll/service-template`
 - API path: `/v1/anipoll/data/service-template`
-- Example secret:
+- Required key: `fakher`
 
-```json
-{
-  "test": "test"
-}
-```
+No Vault value is hardcoded in the project. The actual value is resolved at runtime from Vault.
 
 ### Property binding in code
 
-The service explicitly consumes the Vault value with:
+The service explicitly consumes the Vault key with:
 
 ```java
-@ConfigProperty(name = "test")
+@ConfigProperty(name = "fakher")
 String testValue;
 ```
 
@@ -31,7 +27,7 @@ Test endpoint:
 
 - `GET /hello/test`
 
-This returns the resolved `test` property so you can verify Vault binding end to end.
+This returns the resolved Vault-backed value so you can verify binding end to end.
 
 ### Local dev setup
 
@@ -67,29 +63,29 @@ If you set variables in another terminal, they will not appear in the current on
 
 ### Jenkins setup
 
-This project is now configured to use the **HashiCorp Vault Jenkins plugin**.
+This project is configured to use the **HashiCorp Vault Jenkins plugin**.
 
-#### Expected Vault secret
+#### Expected Vault mapping
 
 Jenkins reads from:
 
 - path: `anipoll/service-template`
 - engine version: `2`
-- key: `test`
+- key: `fakher`
 
 The pipeline injects that Vault key as environment variable:
 
-- `TEST`
+- `FAKHER`
 
-This lets the build/test phases resolve the `test` config property.
+This lets the build/test phases resolve the `fakher` config property without hardcoding any Vault value in the repository.
 
 #### Jenkinsfile behavior
 
 The pipeline now:
 
 - uses `APP_PORT=5555`
-- reads `test` from Vault through `withVault(...)`
-- injects `TEST` into Maven test/package/deploy stages
+- reads `fakher` from Vault through `withVault(...)`
+- injects `FAKHER` into Maven test/package/deploy stages
 
 #### Jenkins plugin prerequisites
 
@@ -97,8 +93,6 @@ In Jenkins, make sure the HashiCorp Vault plugin global configuration is already
 
 - Vault URL
 - Vault token / auth configuration
-
-No extra `vault-token` credential is needed in the project Jenkinsfile anymore.
 
 ### Notes
 
