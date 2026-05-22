@@ -10,6 +10,7 @@ pipeline {
         booleanParam(name: 'NATIVE_BUILD', defaultValue: false, description: 'If checked, run native package/image instead of classic JVM package/image')
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip test execution')
         booleanParam(name: 'ENABLE_SONAR_STAGE', defaultValue: true, description: 'Enable SonarQube analysis stage')
+        booleanParam(name: 'ENABLE_JACOCO', defaultValue: true, description: 'Enable JaCoCo coverage report and 85% coverage check')
         booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
         booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog; skip Docker and Rundeck deployment')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
@@ -106,6 +107,24 @@ pipeline {
             }
         }
 
+        stage('JaCoCo Coverage') {
+            when {
+                expression { params.ENABLE_JACOCO && !params.SKIP_TESTS }
+            }
+            steps {
+                script {
+                    def vaultSecrets = [[
+                        path: env.VAULT_SECRET_PATH,
+                        engineVersion: 2,
+                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
+                    ]]
+                    withVault([vaultSecrets: vaultSecrets]) {
+                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp jacoco:report jacoco:check -DskipTests'
+                    }
+                }
+            }
+        }
+
         stage('SonarQube Analysis') {
             when {
                 expression { params.ENABLE_SONAR_STAGE }
@@ -119,12 +138,16 @@ pipeline {
                     ]]
                     withVault([vaultSecrets: vaultSecrets]) {
                         withSonarQubeEnv(env.SONARQUBE_ENV) {
+                            def sonarCoverageArg = params.ENABLE_JACOCO
+                                ? ' -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml'
+                                : ''
+
                             sh """
                                 set -euo pipefail
-                                $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                                $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
                                   -DskipTests \
                                   -Dsonar.projectKey=${env.APP_NAME} \
-                                  -Dsonar.projectName=${env.APP_NAME}
+                                  -Dsonar.projectName=${env.APP_NAME}${sonarCoverageArg}
                             """
                         }
                     }
