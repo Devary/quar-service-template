@@ -1,3 +1,15 @@
+def withAppVault(script, Closure body) {
+    def vaultSecrets = [[
+        path: script.env.VAULT_SECRET_PATH,
+        engineVersion: 2,
+        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
+    ]]
+
+    script.withVault([vaultSecrets: vaultSecrets]) {
+        body()
+    }
+}
+
 pipeline {
     agent any
 
@@ -95,12 +107,7 @@ pipeline {
             }
             steps {
                 script {
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
                     }
                 }
@@ -113,12 +120,7 @@ pipeline {
             }
             steps {
                 script {
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp jacoco:report jacoco:check -DskipTests'
                     }
                 }
@@ -131,12 +133,7 @@ pipeline {
             }
             steps {
                 script {
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         withSonarQubeEnv(env.SONARQUBE_ENV) {
                             def sonarCoverageArg = params.ENABLE_JACOCO
                                 ? ' -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml'
@@ -161,12 +158,7 @@ pipeline {
             }
             steps {
                 script {
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
                     }
                 }
@@ -180,12 +172,7 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
                     }
                 }
@@ -199,12 +186,7 @@ pipeline {
             steps {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
                     }
                 }
@@ -217,12 +199,7 @@ pipeline {
             }
             steps {
                 script {
-                    def vaultSecrets = [[
-                        path: env.VAULT_SECRET_PATH,
-                        engineVersion: 2,
-                        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-                    ]]
-                    withVault([vaultSecrets: vaultSecrets]) {
+                    withAppVault(this) {
                         def imageTag = sh(
                             script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
                             returnStdout: true
