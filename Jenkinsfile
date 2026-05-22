@@ -121,7 +121,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp jacoco:report jacoco:check -DskipTests'
+                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify -DskipTests'
                     }
                 }
             }
