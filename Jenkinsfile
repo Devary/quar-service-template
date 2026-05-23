@@ -97,7 +97,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test'
+                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test -Dquarkus.profile=test'
                     }
                 }
             }
@@ -110,7 +110,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify -DskipTests'
+                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify -DskipTests -Dquarkus.profile=test'
                     }
                 }
             }
@@ -148,7 +148,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests -Dquarkus.profile=prod"
                     }
                 }
             }
@@ -162,7 +162,7 @@ pipeline {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true${skipFlag}"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true -Dquarkus.profile=prod${skipFlag}"
                     }
                 }
             }
@@ -176,7 +176,7 @@ pipeline {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy${skipFlag}"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp -Puse-jfrog deploy -Dquarkus.profile=prod${skipFlag}"
                     }
                 }
             }
