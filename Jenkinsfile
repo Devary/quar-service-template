@@ -30,6 +30,7 @@ pipeline {
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
         string(name: 'K8S_VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL injected into the Kubernetes deployment')
         string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: 'service-template', description: 'Kubernetes service account used by the pod for Vault Kubernetes auth')
+        string(name: 'K8S_INGRESS_HOST', defaultValue: 'service-template.192.168.178.41.nip.io', description: 'Ingress hostname used to expose the service externally')
     }
 
     options {
@@ -278,6 +279,7 @@ port=${env.APP_PORT}
 replicas=${params.REPLICAS}
 vaultUrl=${params.K8S_VAULT_URL}
 serviceAccount=${serviceAccount}
+ingressHost=${params.K8S_INGRESS_HOST}
 workspace=${infraWorkspace}
 """.stripIndent().trim()
 
