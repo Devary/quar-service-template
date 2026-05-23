@@ -62,17 +62,6 @@ pipeline {
             }
         }
 
-        stage('Checkout Infra') {
-            when {
-                expression { !params.PACKAGE_ONLY }
-            }
-            steps {
-                dir('infra') {
-                    git branch: env.INFRA_REPO_BRANCH, url: env.INFRA_REPO_URL
-                }
-            }
-        }
-
         stage('Package-only Mode') {
             when {
                 expression { params.PACKAGE_ONLY }
@@ -247,6 +236,18 @@ DOCKERFILE=${dockerfile}
                         docker push "$IMAGE_NAME:$IMAGE_TAG"
                         docker push "$IMAGE_NAME:latest"
                     '''
+                }
+            }
+        }
+
+        stage('Checkout Infra') {
+            when {
+                expression { !params.PACKAGE_ONLY }
+            }
+            steps {
+                dir('infra') {
+                    deleteDir()
+                    git branch: env.INFRA_REPO_BRANCH, url: env.INFRA_REPO_URL
                 }
             }
         }
