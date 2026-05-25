@@ -101,6 +101,7 @@ The infra deployment template now injects both.
 ### Notes
 
 - HTTP port is `5555`
+- Metrics endpoint is exposed at `/<service-name>/q/metrics` (for this app: `/service-template/q/metrics`)
 - DevServices for Vault/Postgres are disabled in this project
 - Local development uses `VAULT_URL` and `VAULT_TOKEN`
 - Jenkins uses the Vault plugin injection during pipeline execution
