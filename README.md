@@ -86,7 +86,7 @@ The pipeline now:
 - derives the application name from Maven `artifactId` by default
 - derives the image repository from the application name unless overridden
 - derives the Vault secret path as `<mount>/<app-name>` unless overridden
-- requires a Jenkins Vault credential id (`VAULT_CREDENTIALS_ID`) for Vault-backed stages
+- requires a Jenkins Vault credential id (`VAULT_CREDENTIALS_ID`) for Vault-backed stages, from either the pipeline parameter or an existing Jenkins environment variable
 - derives the service account from the application name unless overridden
 - derives the ingress host as `<app-name>.192.168.178.41.nip.io` unless overridden
 - uses the configured or detected app port (`quarkus.http.port`, fallback `8080`)

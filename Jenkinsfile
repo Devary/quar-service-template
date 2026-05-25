@@ -67,7 +67,6 @@ pipeline {
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
         VAULT_SECRET_PATH = ''
-        VAULT_CREDENTIALS_ID = ''
     }
 
     stages {
@@ -117,7 +116,8 @@ pipeline {
 
                     def vaultSecretName = params.VAULT_SECRET_NAME?.trim() ? params.VAULT_SECRET_NAME.trim() : env.APP_NAME
                     env.VAULT_SECRET_PATH = "${params.VAULT_KV_MOUNT}/${vaultSecretName}"
-                    env.VAULT_CREDENTIALS_ID = params.VAULT_CREDENTIALS_ID?.trim()
+                    def resolvedVaultCredentialsId = params.VAULT_CREDENTIALS_ID?.trim() ?: env.VAULT_CREDENTIALS_ID?.trim()
+                    env.VAULT_CREDENTIALS_ID = resolvedVaultCredentialsId ?: ''
 
                     def resolvedRundeckJobId = params.RUNDECK_JOB_ID?.trim()
                     env.RUNDECK_JOB_ID = resolvedRundeckJobId ?: env.RUNDECK_JOB_ID
