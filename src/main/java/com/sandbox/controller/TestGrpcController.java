@@ -7,13 +7,14 @@ import com.sandbox.service.TestService;
 import io.quarkus.grpc.GrpcService;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @GrpcService
 @Slf4j
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 public class TestGrpcController implements TestGrpc {
 
-    @Inject
     TestService testService;
 
     @Override
