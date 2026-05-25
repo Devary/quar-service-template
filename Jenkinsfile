@@ -1,11 +1,18 @@
 def withAppVault(script, Closure body) {
+    if (!script.env.VAULT_CREDENTIALS_ID?.trim()) {
+        script.error('VAULT_CREDENTIALS_ID is required for Vault-backed pipeline stages')
+    }
+
     def vaultSecrets = [[
         path: script.env.VAULT_SECRET_PATH,
         engineVersion: 2,
         secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
     ]]
 
-    script.withVault([vaultSecrets: vaultSecrets]) {
+    script.withVault([
+        configuration: [vaultCredentialId: script.env.VAULT_CREDENTIALS_ID],
+        vaultSecrets: vaultSecrets
+    ]) {
         body()
     }
 }
@@ -35,6 +42,7 @@ pipeline {
         string(name: 'APP_PORT', defaultValue: '', description: 'Optional application HTTP port override; defaults to quarkus.http.port or 8080')
         string(name: 'VAULT_KV_MOUNT', defaultValue: 'anipoll', description: 'Vault KV mount containing application secrets')
         string(name: 'VAULT_SECRET_NAME', defaultValue: '', description: 'Optional Vault secret name under the mount; defaults to application name')
+        string(name: 'VAULT_CREDENTIALS_ID', defaultValue: '', description: 'Jenkins Vault credentials id used by withVault(...)')
         string(name: 'RUNDECK_JOB_ID', defaultValue: '', description: 'Rundeck job id used for deployment trigger')
     }
 
@@ -59,6 +67,7 @@ pipeline {
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
         VAULT_SECRET_PATH = ''
+        VAULT_CREDENTIALS_ID = ''
     }
 
     stages {
@@ -108,6 +117,7 @@ pipeline {
 
                     def vaultSecretName = params.VAULT_SECRET_NAME?.trim() ? params.VAULT_SECRET_NAME.trim() : env.APP_NAME
                     env.VAULT_SECRET_PATH = "${params.VAULT_KV_MOUNT}/${vaultSecretName}"
+                    env.VAULT_CREDENTIALS_ID = params.VAULT_CREDENTIALS_ID?.trim()
 
                     def resolvedRundeckJobId = params.RUNDECK_JOB_ID?.trim()
                     env.RUNDECK_JOB_ID = resolvedRundeckJobId ?: env.RUNDECK_JOB_ID
@@ -115,6 +125,7 @@ pipeline {
                     echo "Resolved APP_NAME=${env.APP_NAME}"
                     echo "Resolved APP_PORT=${env.APP_PORT}"
                     echo "Resolved VAULT_SECRET_PATH=${env.VAULT_SECRET_PATH}"
+                    echo "Resolved VAULT_CREDENTIALS_ID=${env.VAULT_CREDENTIALS_ID ? 'set' : 'missing'}"
                 }
                 configFileProvider([
                     configFile(fileId: env.MAVEN_SETTINGS_CONFIG, variable: 'MAVEN_USER_SETTINGS_SRC'),
