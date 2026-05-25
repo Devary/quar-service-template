@@ -83,11 +83,17 @@ This lets the build/test phases resolve the `fakher` config property without har
 
 The pipeline now:
 
-- uses `APP_PORT=5555`
+- derives the application name from Maven `artifactId` by default
+- derives the image repository from the application name unless overridden
+- derives the Vault secret path as `<mount>/<app-name>` unless overridden
+- derives the service account from the application name unless overridden
+- derives the ingress host as `<app-name>.192.168.178.41.nip.io` unless overridden
+- uses the configured or detected app port (`quarkus.http.port`, fallback `8080`)
 - reads `fakher` from Vault through `withVault(...)`
 - injects `FAKHER` into Maven test/package/deploy stages
 - passes `K8S_VAULT_URL` to the Kubernetes deployment
 - passes `K8S_SERVICE_ACCOUNT` to the Kubernetes deployment
+- requires `RUNDECK_JOB_ID` when deployment is enabled
 
 ### Kubernetes runtime requirements
 

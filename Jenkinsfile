@@ -26,11 +26,16 @@ pipeline {
         booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
         booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog; skip Docker and Rundeck deployment')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
-        string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
+        string(name: 'IMAGE_REPOSITORY', defaultValue: '', description: 'Optional Harbor repository name without tag; defaults to Maven artifactId')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
         string(name: 'K8S_VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL injected into the Kubernetes deployment')
-        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: 'service-template', description: 'Kubernetes service account used by the pod for Vault Kubernetes auth')
-        string(name: 'K8S_INGRESS_HOST', defaultValue: 'service-template.192.168.178.41.nip.io', description: 'Ingress hostname used to expose the service externally')
+        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: '', description: 'Optional Kubernetes service account; defaults to deployment/app name')
+        string(name: 'K8S_INGRESS_HOST', defaultValue: '', description: 'Optional ingress hostname; defaults to <app-name>.192.168.178.41.nip.io')
+        string(name: 'APP_NAME_OVERRIDE', defaultValue: '', description: 'Optional application/deployment name override; defaults to Maven artifactId')
+        string(name: 'APP_PORT', defaultValue: '', description: 'Optional application HTTP port override; defaults to quarkus.http.port or 8080')
+        string(name: 'VAULT_KV_MOUNT', defaultValue: 'anipoll', description: 'Vault KV mount containing application secrets')
+        string(name: 'VAULT_SECRET_NAME', defaultValue: '', description: 'Optional Vault secret name under the mount; defaults to application name')
+        string(name: 'RUNDECK_JOB_ID', defaultValue: '', description: 'Rundeck job id used for deployment trigger')
     }
 
     options {
@@ -39,11 +44,11 @@ pipeline {
     }
 
     environment {
-        APP_NAME = 'service-template'
-        APP_PORT = '5555'
+        APP_NAME = ''
+        APP_PORT = ''
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
-        RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
+        RUNDECK_JOB_ID = ''
         SONARQUBE_ENV = 'SonarQube'
         MAVEN_SETTINGS_CONFIG = 'cfa67020-8596-45d0-ad38-7b964f2e6e2a'
         MAVEN_GLOBAL_SETTINGS_CONFIG = 'd57cbd3d-1d5a-482e-8da4-abec2af79050'
@@ -53,7 +58,7 @@ pipeline {
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = 'anipoll/service-template'
+        VAULT_SECRET_PATH = ''
     }
 
     stages {
@@ -77,6 +82,39 @@ pipeline {
                 script {
                     env.MAVEN_CMD = fileExists('mvnw') ? './mvnw' : 'mvn'
                     echo "Using Maven command: ${env.MAVEN_CMD}"
+
+                    def derivedAppName = sh(
+                        script: "${env.MAVEN_CMD} -q help:evaluate -Dexpression=project.artifactId -DforceStdout",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!derivedAppName || derivedAppName == 'null') {
+                        error('Could not resolve project.artifactId from pom.xml')
+                    }
+
+                    def configuredAppName = params.APP_NAME_OVERRIDE?.trim()
+                    env.APP_NAME = configuredAppName ? configuredAppName : derivedAppName
+
+                    def configuredPort = params.APP_PORT?.trim()
+                    if (configuredPort) {
+                        env.APP_PORT = configuredPort
+                    } else {
+                        def detectedPort = sh(
+                            script: "grep -hE '^quarkus\\.http\\.port=' src/main/resources/application*.properties | tail -1 | cut -d= -f2- || true",
+                            returnStdout: true
+                        ).trim()
+                        env.APP_PORT = detectedPort ? detectedPort : '8080'
+                    }
+
+                    def vaultSecretName = params.VAULT_SECRET_NAME?.trim() ? params.VAULT_SECRET_NAME.trim() : env.APP_NAME
+                    env.VAULT_SECRET_PATH = "${params.VAULT_KV_MOUNT}/${vaultSecretName}"
+
+                    def resolvedRundeckJobId = params.RUNDECK_JOB_ID?.trim()
+                    env.RUNDECK_JOB_ID = resolvedRundeckJobId ?: env.RUNDECK_JOB_ID
+
+                    echo "Resolved APP_NAME=${env.APP_NAME}"
+                    echo "Resolved APP_PORT=${env.APP_PORT}"
+                    echo "Resolved VAULT_SECRET_PATH=${env.VAULT_SECRET_PATH}"
                 }
                 configFileProvider([
                     configFile(fileId: env.MAVEN_SETTINGS_CONFIG, variable: 'MAVEN_USER_SETTINGS_SRC'),
@@ -199,9 +237,10 @@ pipeline {
                             error('Could not resolve project.version from pom.xml')
                         }
 
+                        def baseRepository = params.IMAGE_REPOSITORY?.trim() ? params.IMAGE_REPOSITORY.trim() : env.APP_NAME
                         def repoName = params.NATIVE_BUILD
-                            ? "${params.IMAGE_REPOSITORY}-native"
-                            : params.IMAGE_REPOSITORY
+                            ? "${baseRepository}-native"
+                            : baseRepository
 
                         def imageName = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
                         def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
@@ -267,8 +306,13 @@ DOCKERFILE=${dockerfile}
                         }
                     }
 
+                    if (!env.RUNDECK_JOB_ID?.trim()) {
+                        error('RUNDECK_JOB_ID parameter is required for deployment runs')
+                    }
+
                     def infraWorkspace = "${env.WORKSPACE}/infra"
                     def serviceAccount = params.K8S_SERVICE_ACCOUNT?.trim() ? params.K8S_SERVICE_ACCOUNT.trim() : env.APP_NAME
+                    def ingressHost = params.K8S_INGRESS_HOST?.trim() ? params.K8S_INGRESS_HOST.trim() : "${env.APP_NAME}.192.168.178.41.nip.io"
 
                     def rundeckOptions = """image=${imageVars['IMAGE_NAME']}
 tag=${imageVars['IMAGE_TAG']}
@@ -279,7 +323,7 @@ port=${env.APP_PORT}
 replicas=${params.REPLICAS}
 vaultUrl=${params.K8S_VAULT_URL}
 serviceAccount=${serviceAccount}
-ingressHost=${params.K8S_INGRESS_HOST}
+ingressHost=${ingressHost}
 workspace=${infraWorkspace}
 """.stripIndent().trim()
 
