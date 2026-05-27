@@ -26,11 +26,11 @@ pipeline {
         booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
         booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog; skip Docker and Rundeck deployment')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
-        string(name: 'IMAGE_REPOSITORY', defaultValue: '', description: 'Optional Harbor repository name without tag; defaults to Maven artifactId')
+        string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Optional Harbor repository name without tag; defaults to Maven artifactId')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
         string(name: 'K8S_VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL injected into the Kubernetes deployment')
-        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: '', description: 'Optional Kubernetes service account; defaults to deployment/app name')
-        string(name: 'K8S_INGRESS_HOST', defaultValue: '', description: 'Optional ingress hostname; defaults to <app-name>.192.168.178.41.nip.io')
+        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: 'service-template', description: 'Optional Kubernetes service account; defaults to deployment/app name')
+        string(name: 'K8S_INGRESS_HOST', defaultValue: 'service-template.192.168.178.41.nip.io', description: 'Optional ingress hostname; defaults to <app-name>.192.168.178.41.nip.io')
         string(name: 'APP_NAME_OVERRIDE', defaultValue: '', description: 'Optional application/deployment name override; defaults to Maven artifactId')
         string(name: 'APP_PORT', defaultValue: '', description: 'Optional application HTTP port override; defaults to quarkus.http.port or 8080')
         string(name: 'VAULT_KV_MOUNT', defaultValue: 'anipoll', description: 'Vault KV mount containing application secrets')
@@ -45,11 +45,11 @@ pipeline {
     }
 
     environment {
-        APP_NAME = ''
-        APP_PORT = ''
+        APP_NAME = 'service-template'
+        APP_PORT = '5555'
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
-        RUNDECK_JOB_ID = ''
+        RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
         SONARQUBE_ENV = 'SonarQube'
         MAVEN_SETTINGS_CONFIG = 'cfa67020-8596-45d0-ad38-7b964f2e6e2a'
         MAVEN_GLOBAL_SETTINGS_CONFIG = 'd57cbd3d-1d5a-482e-8da4-abec2af79050'
@@ -59,7 +59,7 @@ pipeline {
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = ''
+        VAULT_SECRET_PATH = 'anipoll/service-template'
     }
 
     stages {
@@ -94,31 +94,32 @@ pipeline {
                     }
 
                     def configuredAppName = params.APP_NAME_OVERRIDE?.trim()
-                    env.APP_NAME = configuredAppName ? configuredAppName : derivedAppName
+                    env.APP_NAME = (configuredAppName ?: derivedAppName ?: env.APP_NAME ?: 'service-template').toString()
 
                     def configuredPort = params.APP_PORT?.trim()
                     if (configuredPort) {
-                        env.APP_PORT = configuredPort
+                        env.APP_PORT = configuredPort.toString()
                     } else {
                         def detectedPort = sh(
                             script: "grep -hE '^quarkus\\.http\\.port=' src/main/resources/application*.properties | tail -1 | cut -d= -f2- || true",
                             returnStdout: true
                         ).trim()
-                        env.APP_PORT = detectedPort ? detectedPort : '8080'
+                        env.APP_PORT = (detectedPort ?: env.APP_PORT ?: '8080').toString()
                     }
 
-                    def vaultSecretName = params.VAULT_SECRET_NAME?.trim() ? params.VAULT_SECRET_NAME.trim() : env.APP_NAME
-                    env.VAULT_SECRET_PATH = "${params.VAULT_KV_MOUNT}/${vaultSecretName}"
-                    def resolvedVaultCredentialsId = params.VAULT_CREDENTIALS_ID?.trim() ?: env.VAULT_CREDENTIALS_ID?.trim()
-                    env.VAULT_CREDENTIALS_ID = resolvedVaultCredentialsId ?: ''
+                    def vaultMount = params.VAULT_KV_MOUNT?.trim() ?: 'anipoll'
+                    def vaultSecretName = params.VAULT_SECRET_NAME?.trim() ?: env.APP_NAME
+                    env.VAULT_SECRET_PATH = "${vaultMount}/${vaultSecretName}".toString()
 
                     def resolvedRundeckJobId = params.RUNDECK_JOB_ID?.trim()
-                    env.RUNDECK_JOB_ID = resolvedRundeckJobId ?: env.RUNDECK_JOB_ID
+                    if (resolvedRundeckJobId) {
+                        env.RUNDECK_JOB_ID = resolvedRundeckJobId.toString()
+                    }
 
                     echo "Resolved APP_NAME=${env.APP_NAME}"
                     echo "Resolved APP_PORT=${env.APP_PORT}"
                     echo "Resolved VAULT_SECRET_PATH=${env.VAULT_SECRET_PATH}"
-                    echo "Resolved VAULT_CREDENTIALS_ID=${env.VAULT_CREDENTIALS_ID ? 'set' : 'missing'}"
+                    echo "Resolved RUNDECK_JOB_ID=${env.RUNDECK_JOB_ID ? 'set' : 'missing'}"
                 }
                 configFileProvider([
                     configFile(fileId: env.MAVEN_SETTINGS_CONFIG, variable: 'MAVEN_USER_SETTINGS_SRC'),
