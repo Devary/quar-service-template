@@ -321,6 +321,7 @@ DOCKERFILE=${dockerfile}
 
                     def rundeckOptions = """image=${imageVars['IMAGE_NAME']}
 tag=${imageVars['IMAGE_TAG']}
+projectVersion=${imageVars['IMAGE_TAG']}
 namespace=${env.NAMESPACE}
 deployment=${env.APP_NAME}
 container=${env.APP_NAME}
