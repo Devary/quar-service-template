@@ -1,11 +1,21 @@
 def withAppVault(script, Closure body) {
-    def vaultSecrets = [[
-        path: script.env.VAULT_SECRET_PATH,
-        engineVersion: 2,
-        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-    ]]
+    if (!script.env.VAULT_TOKEN?.trim()) {
+        script.error('VAULT_TOKEN environment variable is required so Quarkus can read config directly from Vault during build stages')
+    }
 
-    script.withVault([vaultSecrets: vaultSecrets]) {
+    def vaultPath = script.env.APP_NAME?.trim()
+    if (!vaultPath) {
+        script.error('APP_NAME must be resolved before Vault-backed stages run')
+    }
+
+    script.withEnv([
+        "VAULT_URL=${script.env.K8S_VAULT_URL}",
+        "QUARKUS_VAULT_URL=${script.env.K8S_VAULT_URL}",
+        "QUARKUS_VAULT_KV_SECRET_ENGINE_MOUNT_PATH=${script.env.VAULT_KV_MOUNT}",
+        "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH=${vaultPath}",
+        "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH_DB=${vaultPath}",
+        "QUARKUS_VAULT_AUTHENTICATION_CLIENT_TOKEN=${script.env.VAULT_TOKEN}"
+    ]) {
         body()
     }
 }
@@ -51,7 +61,6 @@ pipeline {
         K8S_VAULT_URL = 'http://192.168.178.41:8200'
         VAULT_KV_MOUNT = 'anipoll'
         DEFAULT_APP_PORT = '5555'
-        VAULT_CREDENTIALS_ID = ''
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
         VAULT_SECRET_PATH = 'anipoll/service-template'
