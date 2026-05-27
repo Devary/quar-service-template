@@ -26,11 +26,11 @@ pipeline {
         booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
         booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog; skip Docker and Rundeck deployment')
         string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
-        string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Optional Harbor repository name without tag; defaults to Maven artifactId')
+        string(name: 'IMAGE_REPOSITORY', defaultValue: '', description: 'Optional Harbor repository name without tag; defaults to Maven artifactId')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
         string(name: 'K8S_VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL injected into the Kubernetes deployment')
-        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: 'service-template', description: 'Optional Kubernetes service account; defaults to deployment/app name')
-        string(name: 'K8S_INGRESS_HOST', defaultValue: 'service-template.192.168.178.41.nip.io', description: 'Optional ingress hostname; defaults to <app-name>.192.168.178.41.nip.io')
+        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: '', description: 'Optional Kubernetes service account; defaults to deployment/app name')
+        string(name: 'K8S_INGRESS_HOST', defaultValue: '', description: 'Optional ingress hostname; defaults to <app-name>.192.168.178.41.nip.io')
         string(name: 'APP_NAME_OVERRIDE', defaultValue: '', description: 'Optional application/deployment name override; defaults to Maven artifactId')
         string(name: 'APP_PORT', defaultValue: '', description: 'Optional application HTTP port override; defaults to quarkus.http.port or 8080')
         string(name: 'VAULT_KV_MOUNT', defaultValue: 'anipoll', description: 'Vault KV mount containing application secrets')
@@ -45,7 +45,7 @@ pipeline {
     }
 
     environment {
-        APP_NAME = 'service-template'
+        APP_NAME = ''
         APP_PORT = '5555'
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
@@ -59,7 +59,7 @@ pipeline {
         HARBOR_REGISTRY = '192.168.178.41:30002'
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = 'anipoll/service-template'
+        VAULT_SECRET_PATH = ''
     }
 
     stages {
@@ -94,7 +94,7 @@ pipeline {
                     }
 
                     def configuredAppName = params.APP_NAME_OVERRIDE?.trim()
-                    env.APP_NAME = (configuredAppName ?: derivedAppName ?: env.APP_NAME ?: 'service-template').toString()
+                    env.APP_NAME = (configuredAppName ?: derivedAppName ?: env.APP_NAME).toString()
 
                     def configuredPort = params.APP_PORT?.trim()
                     if (configuredPort) {

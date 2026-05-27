@@ -1,5 +1,5 @@
 services:
-  service-template:
+  app:
     build:
       context: .
       dockerfile: src/main/docker/Dockerfile.jvm

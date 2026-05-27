@@ -1,6 +1,6 @@
 # quar-service-template
 
-Service template.
+Quarkus service template driven by the Maven artifactId.
 
 ## Vault
 
@@ -8,8 +8,8 @@ This project reads config directly from Vault.
 
 ### Vault secret used
 
-- Vault UI path: `anipoll/service-template`
-- API path: `/v1/anipoll/data/service-template`
+- Vault UI path: `anipoll/<artifactId>`
+- API path: `/v1/anipoll/data/<artifactId>`
 - Required key: `fakher`
 
 No Vault value is hardcoded in the project. The actual value is resolved at runtime from Vault.
@@ -69,7 +69,7 @@ This project is configured to use the **HashiCorp Vault Jenkins plugin**.
 
 Jenkins reads from:
 
-- path: `anipoll/service-template`
+- path: `anipoll/<artifactId>`
 - engine version: `2`
 - key: `fakher`
 
@@ -86,7 +86,7 @@ The pipeline now:
 - derives the application name from Maven `artifactId` by default
 - derives the image repository from the application name unless overridden
 - derives the Vault secret path as `<mount>/<app-name>` unless overridden
-- requires a Jenkins Vault credential id (`VAULT_CREDENTIALS_ID`) for Vault-backed stages, from either the pipeline parameter or an existing Jenkins environment variable
+- derives all service-specific names from the Maven `artifactId` unless explicitly overridden
 - derives the service account from the application name unless overridden
 - derives the ingress host as `<app-name>.192.168.178.41.nip.io` unless overridden
 - uses the configured or detected app port (`quarkus.http.port`, fallback `8080`)
@@ -101,14 +101,14 @@ The pipeline now:
 The deployed pod must have:
 
 - `VAULT_URL` environment variable
-- a service account allowed by the Vault Kubernetes auth role for `service-template`
+- a service account allowed by the Vault Kubernetes auth role for `<artifactId>`
 
 The infra deployment template now injects both.
 
 ### Notes
 
 - HTTP port is `5555`
-- Metrics endpoint is exposed at `/<service-name>/q/metrics` (for this app: `/service-template/q/metrics`)
+- Metrics endpoint is exposed at `/<service-name>/q/metrics` (for this app: `/<artifactId>/q/metrics` when routed through ingress)
 - JSON metrics endpoint is exposed at `/<service-name>/q/metrics/json`
 - DevServices for Vault/Postgres are disabled in this project
 - Local development uses `VAULT_URL` and `VAULT_TOKEN`
