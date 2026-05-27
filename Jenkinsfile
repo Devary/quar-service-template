@@ -1,18 +1,11 @@
 def withAppVault(script, Closure body) {
-    if (!script.env.VAULT_CREDENTIALS_ID?.trim()) {
-        script.error('VAULT_CREDENTIALS_ID is required for Vault-backed pipeline stages')
-    }
-
     def vaultSecrets = [[
         path: script.env.VAULT_SECRET_PATH,
         engineVersion: 2,
         secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
     ]]
 
-    script.withVault([
-        configuration: [vaultCredentialId: script.env.VAULT_CREDENTIALS_ID],
-        vaultSecrets: vaultSecrets
-    ]) {
+    script.withVault([vaultSecrets: vaultSecrets]) {
         body()
     }
 }
