@@ -61,6 +61,7 @@ pipeline {
         K8S_VAULT_URL = 'http://192.168.178.41:8200'
         VAULT_KV_MOUNT = 'anipoll'
         DEFAULT_APP_PORT = '5555'
+        VAULT_TOKEN = credentials('vault-token-for-plugin')
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
         VAULT_SECRET_PATH = 'anipoll/service-template'
