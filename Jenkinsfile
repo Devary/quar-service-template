@@ -3,9 +3,9 @@ def withAppVault(script, Closure body) {
         script.error('VAULT_TOKEN environment variable is required so Quarkus can read config directly from Vault during build stages')
     }
 
-    def vaultPath = script.env.APP_NAME?.trim()
+    def vaultPath = script.env.VAULT_SECRET_PATH?.trim()
     if (!vaultPath) {
-        script.error('APP_NAME must be resolved before Vault-backed stages run')
+        script.error('VAULT_SECRET_PATH must be resolved before Vault-backed stages run')
     }
 
     script.withEnv([
@@ -64,7 +64,7 @@ pipeline {
         VAULT_TOKEN = credentials('vault-token-read-only')
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = 'anipoll/service-template'
+        VAULT_SECRET_PATH = '/v1/kv/data/service-template'
     }
 
     stages {
@@ -98,8 +98,7 @@ pipeline {
                     ).trim()
                     env.APP_PORT = (detectedPort ?: env.APP_PORT ?: env.DEFAULT_APP_PORT).toString()
 
-                    def vaultMount = env.VAULT_KV_MOUNT?.trim() ?: 'anipoll'
-                    env.VAULT_SECRET_PATH = "${vaultMount}/${env.APP_NAME}".toString()
+                    env.VAULT_SECRET_PATH = "/v1/kv/data/${env.APP_NAME}".toString()
 
                     echo "Resolved APP_NAME=${env.APP_NAME}"
                     echo "Resolved APP_PORT=${env.APP_PORT}"
