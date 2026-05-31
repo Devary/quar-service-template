@@ -13,8 +13,7 @@ def withAppVault(script, Closure body) {
         "QUARKUS_VAULT_URL=${script.env.K8S_VAULT_URL}",
         "QUARKUS_VAULT_KV_SECRET_ENGINE_MOUNT_PATH=${script.env.VAULT_KV_MOUNT}",
         "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH=${vaultPath}",
-        "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH_DB=${vaultPath}",
-        "QUARKUS_VAULT_AUTHENTICATION_CLIENT_TOKEN=${script.env.VAULT_TOKEN}"
+        "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH_DB=${vaultPath}"
     ]) {
         body()
     }
@@ -64,7 +63,7 @@ pipeline {
         VAULT_TOKEN = credentials('vault-token-read-only')
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = '/v1/kv/data/service-template'
+        VAULT_SECRET_PATH = 'service-template'
     }
 
     stages {
@@ -98,7 +97,7 @@ pipeline {
                     ).trim()
                     env.APP_PORT = (detectedPort ?: env.APP_PORT ?: env.DEFAULT_APP_PORT).toString()
 
-                    env.VAULT_SECRET_PATH = "/v1/kv/data/${env.APP_NAME}".toString()
+                    env.VAULT_SECRET_PATH = env.APP_NAME.toString()
 
                     echo "Resolved APP_NAME=${env.APP_NAME}"
                     echo "Resolved APP_PORT=${env.APP_PORT}"
