@@ -263,9 +263,8 @@ pipeline {
             }
             steps {
                 script {
-                    def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp deploy -Dquarkus.profile=prod${skipFlag}"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp deploy -DskipTests -Dquarkus.profile=prod"
                     }
                 }
             }
