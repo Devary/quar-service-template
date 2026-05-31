@@ -46,7 +46,7 @@ pipeline {
     }
 
     environment {
-        APP_NAME = 'service-template'
+        APP_NAME = "${DEFAULT_APP_NAME}"
         APP_PORT = '5555'
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
@@ -65,7 +65,7 @@ pipeline {
         VAULT_TOKEN = credentials('vault-token-read-only')
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = 'service-template'
+        VAULT_SECRET_PATH = "${DEFAULT_APP_NAME}"
     }
 
     stages {
@@ -90,8 +90,7 @@ pipeline {
                     env.MAVEN_CMD = fileExists('mvnw') ? './mvnw' : 'mvn'
                     echo "Using Maven command: ${env.MAVEN_CMD}"
 
-                    def configuredAppName = params.APP_NAME?.trim()
-                    env.APP_NAME = (configuredAppName ?: env.APP_NAME ?: DEFAULT_APP_NAME).toString()
+                    env.APP_NAME = DEFAULT_APP_NAME.toString()
 
                     def detectedPort = sh(
                         script: "grep -hE '^quarkus\\.http\\.port=' src/main/resources/application*.properties | tail -1 | cut -d= -f2- || true",
