@@ -1,11 +1,22 @@
-def withAppVault(script, Closure body) {
-    def vaultSecrets = [[
-        path: script.env.VAULT_SECRET_PATH,
-        engineVersion: 2,
-        secretValues: [[vaultKey: 'fakher', envVar: 'FAKHER']]
-    ]]
+def DEFAULT_APP_NAME = 'service-template'
 
-    script.withVault([vaultSecrets: vaultSecrets]) {
+def withAppVault(script, Closure body) {
+    if (!script.env.VAULT_TOKEN?.trim()) {
+        script.error('VAULT_TOKEN environment variable is required so Quarkus can read config directly from Vault during build stages')
+    }
+
+    def vaultPath = script.env.VAULT_SECRET_PATH?.trim()
+    if (!vaultPath) {
+        script.error('VAULT_SECRET_PATH must be resolved before Vault-backed stages run')
+    }
+
+    script.withEnv([
+        "VAULT_URL=${script.env.K8S_VAULT_URL}",
+        "QUARKUS_VAULT_URL=${script.env.K8S_VAULT_URL}",
+        "QUARKUS_VAULT_KV_SECRET_ENGINE_MOUNT_PATH=${script.env.VAULT_KV_MOUNT}",
+        "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH=${vaultPath}",
+        "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH_DB=${vaultPath}"
+    ]) {
         body()
     }
 }
@@ -24,13 +35,9 @@ pipeline {
         booleanParam(name: 'ENABLE_SONAR_STAGE', defaultValue: true, description: 'Enable SonarQube analysis stage')
         booleanParam(name: 'ENABLE_JACOCO', defaultValue: true, description: 'Enable JaCoCo coverage report and 85% coverage check')
         booleanParam(name: 'ENABLE_JFROG_DEPLOY', defaultValue: true, description: 'Enable deploy to JFrog stage')
-        booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog; skip Docker and Rundeck deployment')
-        string(name: 'HARBOR_PROJECT', defaultValue: 'library', description: 'Harbor project name')
-        string(name: 'IMAGE_REPOSITORY', defaultValue: 'service-template', description: 'Harbor repository name without tag')
+        booleanParam(name: 'PACKAGE_ONLY', defaultValue: false, description: 'Only package and deploy to JFrog only; skip Docker and Rundeck deployment')
+        string(name: 'APP_NAME', defaultValue: DEFAULT_APP_NAME, description: 'Single base name used for app/deployment/image/service-account/ingress/Vault secret')
         string(name: 'REPLICAS', defaultValue: '1', description: 'Desired number of pods')
-        string(name: 'K8S_VAULT_URL', defaultValue: 'http://192.168.178.41:8200', description: 'Vault URL injected into the Kubernetes deployment')
-        string(name: 'K8S_SERVICE_ACCOUNT', defaultValue: 'service-template', description: 'Kubernetes service account used by the pod for Vault Kubernetes auth')
-        string(name: 'K8S_INGRESS_HOST', defaultValue: 'service-template.192.168.178.41.nip.io', description: 'Ingress hostname used to expose the service externally')
     }
 
     options {
@@ -51,9 +58,14 @@ pipeline {
         MAVEN_GLOBAL_SETTINGS_FILE = '.jenkins-global-settings.xml'
         NAMESPACE = 'default'
         HARBOR_REGISTRY = '192.168.178.41:30002'
+        HARBOR_PROJECT = 'library'
+        K8S_VAULT_URL = 'http://192.168.178.41:8200'
+        VAULT_KV_MOUNT = 'kv'
+        DEFAULT_APP_PORT = '5555'
+        VAULT_TOKEN = credentials('vault-token-read-only')
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = 'anipoll/service-template'
+        VAULT_SECRET_PATH = 'service-template'
     }
 
     stages {
@@ -77,6 +89,22 @@ pipeline {
                 script {
                     env.MAVEN_CMD = fileExists('mvnw') ? './mvnw' : 'mvn'
                     echo "Using Maven command: ${env.MAVEN_CMD}"
+
+                    def configuredAppName = params.APP_NAME?.trim()
+                    env.APP_NAME = (configuredAppName ?: env.APP_NAME ?: DEFAULT_APP_NAME).toString()
+
+                    def detectedPort = sh(
+                        script: "grep -hE '^quarkus\\.http\\.port=' src/main/resources/application*.properties | tail -1 | cut -d= -f2- || true",
+                        returnStdout: true
+                    ).trim()
+                    env.APP_PORT = (detectedPort ?: env.APP_PORT ?: env.DEFAULT_APP_PORT).toString()
+
+                    env.VAULT_SECRET_PATH = env.APP_NAME.toString()
+
+                    echo "Resolved APP_NAME=${env.APP_NAME}"
+                    echo "Resolved APP_PORT=${env.APP_PORT}"
+                    echo "Resolved VAULT_SECRET_PATH=${env.VAULT_SECRET_PATH}"
+                    echo "Resolved RUNDECK_JOB_ID=${env.RUNDECK_JOB_ID ? 'set' : 'missing'}"
                 }
                 configFileProvider([
                     configFile(fileId: env.MAVEN_SETTINGS_CONFIG, variable: 'MAVEN_USER_SETTINGS_SRC'),
@@ -199,11 +227,12 @@ pipeline {
                             error('Could not resolve project.version from pom.xml')
                         }
 
+                        def baseRepository = env.APP_NAME
                         def repoName = params.NATIVE_BUILD
-                            ? "${params.IMAGE_REPOSITORY}-native"
-                            : params.IMAGE_REPOSITORY
+                            ? "${baseRepository}-native"
+                            : baseRepository
 
-                        def imageName = "${env.HARBOR_REGISTRY}/${params.HARBOR_PROJECT}/${repoName}"
+                        def imageName = "${env.HARBOR_REGISTRY}/${env.HARBOR_PROJECT}/${repoName}"
                         def dockerfile = params.NATIVE_BUILD ? 'src/main/docker/Dockerfile.native' : 'src/main/docker/Dockerfile.jvm'
 
                         sh 'mkdir -p target'
@@ -267,19 +296,25 @@ DOCKERFILE=${dockerfile}
                         }
                     }
 
+                    if (!env.RUNDECK_JOB_ID?.trim()) {
+                        error('RUNDECK_JOB_ID environment value is required for deployment runs')
+                    }
+
                     def infraWorkspace = "${env.WORKSPACE}/infra"
-                    def serviceAccount = params.K8S_SERVICE_ACCOUNT?.trim() ? params.K8S_SERVICE_ACCOUNT.trim() : env.APP_NAME
+                    def serviceAccount = env.APP_NAME
+                    def ingressHost = "${env.APP_NAME}.192.168.178.41.nip.io"
 
                     def rundeckOptions = """image=${imageVars['IMAGE_NAME']}
 tag=${imageVars['IMAGE_TAG']}
+projectVersion=${imageVars['IMAGE_TAG']}
 namespace=${env.NAMESPACE}
 deployment=${env.APP_NAME}
 container=${env.APP_NAME}
 port=${env.APP_PORT}
 replicas=${params.REPLICAS}
-vaultUrl=${params.K8S_VAULT_URL}
+vaultUrl=${env.K8S_VAULT_URL}
 serviceAccount=${serviceAccount}
-ingressHost=${params.K8S_INGRESS_HOST}
+ingressHost=${ingressHost}
 workspace=${infraWorkspace}
 """.stripIndent().trim()
 
