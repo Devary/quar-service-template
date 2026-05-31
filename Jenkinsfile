@@ -188,7 +188,7 @@ pipeline {
                 expression { !params.SKIP_TESTS }
             }
             steps {
-                sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test -Dquarkus.profile=test'
+                sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test -Pwith-database -Dquarkus.profile=test'
             }
         }
 
@@ -199,7 +199,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify -DskipTests -Dquarkus.profile=test'
+                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp verify -Pwith-database -DskipTests -Dquarkus.profile=test'
                     }
                 }
             }
@@ -219,7 +219,7 @@ pipeline {
 
                             sh """
                                 set -euo pipefail
-                                $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                                $MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -Pwith-database org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
                                   -DskipTests \
                                   -Dsonar.projectKey=${env.APP_NAME} \
                                   -Dsonar.projectName=${env.APP_NAME}${sonarCoverageArg}
@@ -237,7 +237,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -DskipTests -Dquarkus.profile=prod"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pwith-database -DskipTests -Dquarkus.profile=prod"
                     }
                 }
             }
@@ -251,7 +251,7 @@ pipeline {
                 script {
                     def skipFlag = params.SKIP_TESTS ? ' -DskipTests' : ''
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pnative -Dquarkus.native.container-build=true -Dquarkus.profile=prod${skipFlag}"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp clean package -Pwith-database,native -Dquarkus.native.container-build=true -Dquarkus.profile=prod${skipFlag}"
                     }
                 }
             }
@@ -264,7 +264,7 @@ pipeline {
             steps {
                 script {
                     withAppVault(this) {
-                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp deploy -DskipTests -Dquarkus.profile=prod"
+                        sh "$MAVEN_CMD -s \"$MAVEN_USER_SETTINGS_FILE\" -gs \"$MAVEN_GLOBAL_SETTINGS_FILE\" -B -ntp deploy -Pwith-database -DskipTests -Dquarkus.profile=prod"
                     }
                 }
             }
@@ -278,7 +278,7 @@ pipeline {
                 script {
                     withAppVault(this) {
                         def imageTag = sh(
-                            script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -q help:evaluate -Dexpression=project.version -DforceStdout',
+                            script: '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp -Pwith-database -q help:evaluate -Dexpression=project.version -DforceStdout',
                             returnStdout: true
                         ).trim()
 

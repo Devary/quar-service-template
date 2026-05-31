@@ -9,10 +9,14 @@
     <parent>
         <groupId>com.devary</groupId>
         <artifactId>parent</artifactId>
-        <version>1.0.9</version>
+        <version>1.0.10</version>
+        <relativePath>../quar-parent/pom.xml</relativePath>
     </parent>
 
     <profiles>
+        <profile>
+            <id>with-database</id>
+        </profile>
         <profile>
             <id>local</id>
         </profile>
