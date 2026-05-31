@@ -46,7 +46,7 @@ pipeline {
     }
 
     environment {
-        APP_NAME = DEFAULT_APP_NAME
+        APP_NAME = 'service-template'
         APP_PORT = '5555'
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
@@ -65,7 +65,7 @@ pipeline {
         VAULT_TOKEN = credentials('vault-token-read-only')
         INFRA_REPO_URL = 'https://github.com/Devary/infra.git'
         INFRA_REPO_BRANCH = 'main'
-        VAULT_SECRET_PATH = DEFAULT_APP_NAME
+        VAULT_SECRET_PATH = 'service-template'
     }
 
     stages {
