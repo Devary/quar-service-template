@@ -46,16 +46,33 @@ def ensureAppVaultSecret(script) {
             mount_path="${VAULT_KV_MOUNT}"
             secret_path="${VAULT_SECRET_PATH}"
 
-            if ! vault secrets list -format=json | grep -q "\"${mount_path}/\""; then
-              echo "ERROR: Vault mount ${mount_path} does not exist. Bootstrap infra first."
-              exit 1
-            fi
+            get_output="$(vault kv get -mount="${mount_path}" "${secret_path}" 2>&1 || true)"
+            get_status=$?
 
-            if vault kv get -mount="${mount_path}" "${secret_path}" >/dev/null 2>&1; then
+            if [ "$get_status" -eq 0 ]; then
               echo "Vault secret ${mount_path}/${secret_path} already exists"
             else
-              vault kv put -mount="${mount_path}" "${secret_path}" fakher=test db.username=test db.password=test db.reactive-url=vertx-reactive:postgresql://localhost:5432/postgres db.jdbc-url=jdbc:postgresql://localhost:5432/postgres db.kind=postgresql db.hibernate-generation=update >/dev/null
-              echo "Vault secret ${mount_path}/${secret_path} initialized with default test values"
+              case "$get_output" in
+                *"No value found at"*|*"404"*)
+                  vault kv put -mount="${mount_path}" "${secret_path}" fakher=test db.username=test db.password=test db.reactive-url=vertx-reactive:postgresql://localhost:5432/postgres db.jdbc-url=jdbc:postgresql://localhost:5432/postgres db.kind=postgresql db.hibernate-generation=update >/dev/null
+                  echo "Vault secret ${mount_path}/${secret_path} initialized with default test values"
+                  ;;
+                *"permission denied"*|*"403"*)
+                  echo "ERROR: Vault token cannot read or initialize ${mount_path}/${secret_path}. Check Jenkins Vault policy."
+                  echo "$get_output"
+                  exit 1
+                  ;;
+                *"No handler for route"*|*"unsupported path"*)
+                  echo "ERROR: Vault mount ${mount_path} is not available. Bootstrap infra first."
+                  echo "$get_output"
+                  exit 1
+                  ;;
+                *)
+                  echo "ERROR: Unexpected Vault response while checking ${mount_path}/${secret_path}"
+                  echo "$get_output"
+                  exit 1
+                  ;;
+              esac
             fi
         '''
     }
