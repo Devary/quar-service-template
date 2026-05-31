@@ -10,7 +10,6 @@
         <groupId>com.devary</groupId>
         <artifactId>parent</artifactId>
         <version>1.0.10</version>
-        <relativePath>../quar-parent/pom.xml</relativePath>
     </parent>
 
     <profiles>
