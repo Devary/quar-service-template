@@ -11,6 +11,7 @@ def withAppVault(script, Closure body) {
     }
 
     script.withEnv([
+        "VAULT_ADDR=${script.env.K8S_VAULT_URL}",
         "VAULT_URL=${script.env.K8S_VAULT_URL}",
         "QUARKUS_VAULT_URL=${script.env.K8S_VAULT_URL}",
         "QUARKUS_VAULT_KV_SECRET_ENGINE_MOUNT_PATH=${script.env.VAULT_KV_MOUNT}",
@@ -18,6 +19,45 @@ def withAppVault(script, Closure body) {
         "QUARKUS_VAULT_SECRET_CONFIG_KV_PATH_DB=${vaultPath}"
     ]) {
         body()
+    }
+}
+
+def ensureAppVaultSecret(script) {
+    def vaultPath = script.env.VAULT_SECRET_PATH?.trim()
+    if (!script.env.VAULT_TOKEN?.trim()) {
+        script.error('VAULT_TOKEN environment variable is required for Vault secret initialization')
+    }
+    if (!vaultPath) {
+        script.error('VAULT_SECRET_PATH must be resolved before Vault secret initialization')
+    }
+
+    script.withEnv([
+        "VAULT_ADDR=${script.env.K8S_VAULT_URL}",
+        "VAULT_URL=${script.env.K8S_VAULT_URL}"
+    ]) {
+        script.sh '''
+            set -euo pipefail
+
+            if ! command -v vault >/dev/null 2>&1; then
+              echo "ERROR: vault CLI is required for Init Secret stage"
+              exit 1
+            fi
+
+            mount_path="${VAULT_KV_MOUNT}"
+            secret_path="${VAULT_SECRET_PATH}"
+
+            if ! vault secrets list -format=json | grep -q "\"${mount_path}/\""; then
+              echo "ERROR: Vault mount ${mount_path} does not exist. Bootstrap infra first."
+              exit 1
+            fi
+
+            if vault kv get -mount="${mount_path}" "${secret_path}" >/dev/null 2>&1; then
+              echo "Vault secret ${mount_path}/${secret_path} already exists"
+            else
+              vault kv put -mount="${mount_path}" "${secret_path}" fakher=test db.username=test db.password=test db.reactive-url=vertx-reactive:postgresql://localhost:5432/postgres db.jdbc-url=jdbc:postgresql://localhost:5432/postgres db.kind=postgresql db.hibernate-generation=update >/dev/null
+              echo "Vault secret ${mount_path}/${secret_path} initialized with default test values"
+            fi
+        '''
     }
 }
 
@@ -118,16 +158,20 @@ pipeline {
             }
         }
 
+        stage('Init Secret') {
+            steps {
+                script {
+                    ensureAppVaultSecret(this)
+                }
+            }
+        }
+
         stage('Test') {
             when {
                 expression { !params.SKIP_TESTS }
             }
             steps {
-                script {
-                    withAppVault(this) {
-                        sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test -Dquarkus.profile=test'
-                    }
-                }
+                sh '$MAVEN_CMD -s "$MAVEN_USER_SETTINGS_FILE" -gs "$MAVEN_GLOBAL_SETTINGS_FILE" -B -ntp test -Dquarkus.profile=test'
             }
         }
 
