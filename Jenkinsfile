@@ -105,6 +105,7 @@ pipeline {
     environment {
         APP_NAME = "${DEFAULT_APP_NAME}"
         APP_PORT = '5555'
+        GRPC_PORT = '9001'
         MAVEN_CMD = 'mvn'
         RUNDECK_INSTANCE = 'local-rundeck'
         RUNDECK_JOB_ID = '1b180a49-b61b-4733-877e-03f3ea9f6939'
@@ -153,12 +154,18 @@ pipeline {
                         script: "grep -hE '^quarkus\\.http\\.port=' src/main/resources/application*.properties | tail -1 | cut -d= -f2- || true",
                         returnStdout: true
                     ).trim()
+                    def detectedGrpcPort = sh(
+                        script: "grep -hE '^quarkus\\.grpc\\.server\\.port=' src/main/resources/application*.properties | tail -1 | cut -d= -f2- || true",
+                        returnStdout: true
+                    ).trim()
                     env.APP_PORT = (detectedPort ?: env.APP_PORT ?: env.DEFAULT_APP_PORT).toString()
+                    env.GRPC_PORT = (detectedGrpcPort ?: env.GRPC_PORT ?: '9000').toString()
 
                     env.VAULT_SECRET_PATH = env.APP_NAME.toString()
 
                     echo "Resolved APP_NAME=${env.APP_NAME}"
                     echo "Resolved APP_PORT=${env.APP_PORT}"
+                    echo "Resolved GRPC_PORT=${env.GRPC_PORT}"
                     echo "Resolved VAULT_SECRET_PATH=${env.VAULT_SECRET_PATH}"
                     echo "Resolved RUNDECK_JOB_ID=${env.RUNDECK_JOB_ID ? 'set' : 'missing'}"
                 }
@@ -370,6 +377,7 @@ namespace=${env.NAMESPACE}
 deployment=${env.APP_NAME}
 container=${env.APP_NAME}
 port=${env.APP_PORT}
+grpcPort=${env.GRPC_PORT}
 replicas=${params.REPLICAS}
 vaultUrl=${env.K8S_VAULT_URL}
 serviceAccount=${serviceAccount}
