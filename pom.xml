@@ -12,42 +12,7 @@
         <version>1.0.10</version>
     </parent>
 
-    <properties>
-        <jfrog.base.url>http://192.168.178.41:30990/artifactory</jfrog.base.url>
-    </properties>
-
-    <repositories>
-        <repository>
-            <id>jfrog-virtual</id>
-            <name>JFrog Virtual Maven Repo</name>
-            <url>${jfrog.base.url}/dev-mvn-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>jfrog-virtual</id>
-            <name>JFrog Virtual Maven Plugins</name>
-            <url>${jfrog.base.url}/dev-mvn-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-
     <profiles>
-        <profile>
-            <id>with-database</id>
-        </profile>
         <profile>
             <id>local</id>
         </profile>
